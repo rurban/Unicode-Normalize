@@ -6,7 +6,7 @@ use warnings;
 use Carp;
 use Lingua::KO::Hangul::Util;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -15,17 +15,22 @@ require AutoLoader;
 
 our @ISA = qw(Exporter DynaLoader);
 our @EXPORT = qw( NFC NFD NFKC NFKD );
-our @EXPORT_OK = qw( normalize getCanon getCompat
-		getComposite getCombinClass getExclusion);
+our @EXPORT_OK = qw( normalize decompose reorder compose 
+	getCanon getCompat getComposite getCombinClass getExclusion);
 our %EXPORT_TAGS = ( all => [ @EXPORT, @EXPORT_OK ] );
 
 bootstrap Unicode::Normalize $VERSION;
 
-# NFK?D and _compose are in XS.
+use constant CANON  => 0;
+use constant COMPAT => 1;
 
-sub NFC($)  { _compose(scalar composeHangul(NFD ($_[0]))) }
+sub NFD  ($) { reorder(decompose($_[0], CANON)) }
 
-sub NFKC($) { _compose(scalar composeHangul(NFKD($_[0]))) }
+sub NFKD ($) { reorder(decompose($_[0], COMPAT)) }
+
+sub NFC  ($) { compose(reorder(decompose($_[0], CANON))) }
+
+sub NFKC ($) { compose(reorder(decompose($_[0], COMPAT))) }
 
 sub normalize($$)
 {

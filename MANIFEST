@@ -3,6 +3,7 @@ Makefile.PL
 MANIFEST
 MANIFEST.XS
 mkheader
+hangul.h
 Normalize.pm
 Normalize.pm.XS
 Normalize.xs.XS

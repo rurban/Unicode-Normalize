@@ -1,7 +1,7 @@
 #!perl
 #
-# This script generates "canon.h", "compat.h", "combin.h", "compos.h",
-# and "exclus.h" for Unicode::Normalize.xs. (cf. Makefile.PL)
+# This script generates "unfcan.h", "unfcpt.h", "unfcmb.h", "unfcmp.h",
+# and "unfexc.h" for Unicode::Normalize.xs. (cf. Makefile.PL)
 #
 use 5.006;
 use strict;
@@ -138,11 +138,15 @@ sub utf8len {
   croak "$PACKAGE: illegal char in the composite. utf-8 max is 0x10ffff.";
 }
 
+my $prefix = "UNF_";
+
+my $structname = "${prefix}complist";
+
 our (%Comp1st, %CompList);
 foreach(sort keys %Compos){
   my @a = unpack('U*', $_);
   my $val = $Compos{$_};
-  my $name = sprintf "__UNF_complist_%06x", $a[0];
+  my $name = sprintf "${structname}_%06x", $a[0];
   $Comp1st{ $a[0] } = $name;
   $CompList{ $name }{ $a[1] } = $val;
 
@@ -152,7 +156,6 @@ foreach(sort keys %Compos){
   }
 }
 
-my $structname = "__UNF_complist";
 my $compinit =
   "typedef struct { UV nextchar; UV composite; } $structname;\n\n";
 
@@ -168,7 +171,7 @@ foreach my $i (sort keys %CompList){
 
 my @Exclus = sort {$a <=> $b} keys %Exclus;
 
-my $file = "exclus.h";
+my $file = "unfexc.h";
 open FH, ">$file" or croak "$PACKAGE: $file can't be made";
 binmode FH; select FH;
 
@@ -197,24 +200,28 @@ close FH;
 
 my @tripletable = (
   {
+    file => "unfcmb",
     name => "combin",
     type => "U8",
     hash => \%Combin,
     null =>  0,
   },
   {
+    file => "unfcan",
     name => "canon",
     type => "U8*",
     hash => \%Canon,
     null => "NULL",
   },
   {
+    file => "unfcpt",
     name => "compat",
     type => "U8*",
     hash => \%Compat,
     null => "NULL",
   },
   {
+    file => "unfcmp",
     name => "compos",
     type => "$structname *",
     hash => \%Comp1st,
@@ -224,8 +231,8 @@ my @tripletable = (
 );
 
 foreach my $tbl (@tripletable) {
-  my $file = "$tbl->{name}.h";
-  my $head = "__UNF_$tbl->{name}";
+  my $file = "$tbl->{file}.h";
+  my $head = "${prefix}$tbl->{name}";
   my $type = $tbl->{type};
   my $hash = $tbl->{hash};
   my $null = $tbl->{null};

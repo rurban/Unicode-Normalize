@@ -7,6 +7,7 @@ Normalize.pm.NXS
 Normalize.pm
 Normalize.xs
 mkheader
+hangul.h
 t/func.t
 t/norm.t
 t/test.t

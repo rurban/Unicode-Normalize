@@ -6,7 +6,7 @@
 use Test;
 use strict;
 use warnings;
-BEGIN { plan tests => 15 };
+BEGIN { plan tests => 16 };
 use Unicode::Normalize qw(normalize);
 ok(1); # If we made it this far, we're ok.
 
@@ -27,6 +27,7 @@ sub hexNFD {
 ok(hexNFC("0061 0315 0300 05AE 05C4 0062"), "00E0 05AE 05C4 0315 0062");
 ok(hexNFC("00E0 05AE 05C4 0315 0062"),      "00E0 05AE 05C4 0315 0062");
 ok(hexNFC("0061 05AE 0300 05C4 0315 0062"), "00E0 05AE 05C4 0315 0062");
+ok(hexNFC("0045 0304 0300"), "1E14");
 
 ok(hexNFD("0061 0315 0300 05AE 05C4 0062"), "0061 05AE 0300 05C4 0315 0062");
 ok(hexNFD("00E0 05AE 05C4 0315 0062"),      "0061 05AE 0300 05C4 0315 0062");
