@@ -4,9 +4,8 @@ use 5.006;
 use strict;
 use warnings;
 use Carp;
-use Lingua::KO::Hangul::Util;
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -40,15 +39,6 @@ sub normalize($$)
   $form eq 'KD' || $form eq 'NFKD' ? NFKD($_[0]) :
   $form eq 'KC' || $form eq 'NFKC' ? NFKC($_[0]) :
     croak $PACKAGE."::normalize: invalid form name: $form";
-}
-
-##
-## "hhhh hhhh hhhh" to (dddd, dddd, dddd)
-##
-sub _getHexArray
-{
-  my $str = shift;
-  map hex(), $str =~ /([0-9A-Fa-f]+)/g;
 }
 
 1;

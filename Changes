@@ -1,6 +1,10 @@
 Revision history for Perl extension Unicode::Normalize.
 
-0.09  Thu Nov 02 22:39:30 2001
+0.10  Sat Nov 03 16:30:20 2001
+	- The XS version is now independent of Lingua::KO::Hangul::Util.
+	  (though the Non-XS version still requires that.)
+
+0.09  Fri Nov 02 22:39:30 2001
 	- remove pTHX_.
 
 0.08  Thu Nov 01 23:20:42 2001

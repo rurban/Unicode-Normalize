@@ -3,6 +3,7 @@
 #include "perl.h"
 #include "XSUB.h"
 
+/* These 5 files are prepared by mkheader */
 #include "unfcmb.h"
 #include "unfcan.h"
 #include "unfcpt.h"
@@ -26,9 +27,13 @@
 /* HANGUL_H */
 #define Hangul_SBase  0xAC00
 #define Hangul_SFinal 0xD7A3
+#define Hangul_SCount  11172
+
+#define Hangul_NCount    588
 
 #define Hangul_LBase  0x1100
 #define Hangul_LFinal 0x1112
+#define Hangul_LCount     19
 
 #define Hangul_VBase  0x1161
 #define Hangul_VFinal 0x1175
@@ -118,25 +123,24 @@ U8 getCombinClass (UV uv)
     return row ? row[uv & 0xff] : 0;
 }
 
-SV* call_decompHangul (UV uv)
+void sv_cat_decompHangul (SV* sv, UV uv)
 {
-  dSP;
-  int count;
-  SV* retsv;
-  ENTER;
-  SAVETMPS;
-  PUSHMARK(SP);
-  XPUSHs(sv_2mortal(newSVuv(uv)));
-  PUTBACK;
-  count = call_pv("Unicode::Normalize::decomposeHangul", G_SCALAR);
-  SPAGAIN;
-  if (count != 1)
-    croak("Panic in Unicode::Normalize calling decomposeHangul\n");
-  retsv = newSVsv(POPs);
-  PUTBACK;
-  FREETMPS;
-  LEAVE;
-  return retsv;
+    UV sindex, lindex, vindex, tindex;
+    U8 *t, temp[3 * UTF8_MAXLEN + 1];
+
+    if(! Hangul_IsS(uv)) return;
+
+    sindex =  uv - Hangul_SBase;
+    lindex =  sindex / Hangul_NCount;
+    vindex = (sindex % Hangul_NCount) / Hangul_TCount;
+    tindex =  sindex % Hangul_TCount;
+
+    t = temp;
+    t = uvuni_to_utf8(t, (lindex + Hangul_LBase));
+    t = uvuni_to_utf8(t, (vindex + Hangul_VBase));
+    if (tindex) t = uvuni_to_utf8(t, (tindex + Hangul_TBase));
+    *t = '\0';
+    sv_catpvn(sv, temp, strlen(temp));
 }
 
 MODULE = Unicode::Normalize	PACKAGE = Unicode::Normalize
@@ -172,13 +176,11 @@ decompose(arg, compat)
     for(p = s; p < e;){
 	uv = utf8n_to_uvchr(p, e - p, &retlen, 0);
 	p += retlen;
-	r = iscompat ? dec_compat(uv) : dec_canonical(uv);
-	if(r) {
-	    sv_catpv(dst, r);
-	} else if(Hangul_IsS(uv)) {
-	    sv_catsv(dst, call_decompHangul(uv));
-	} else {
-	    sv_catpvn(dst, p - retlen, retlen);
+	if(Hangul_IsS(uv)) sv_cat_decompHangul(dst, uv);
+	else {
+	    r = iscompat ? dec_compat(uv) : dec_canonical(uv);
+	    if(r) sv_catpv(dst, r);
+	    else  sv_catpvn(dst, p - retlen, retlen);
 	}
     }
     RETVAL = dst;
@@ -360,7 +362,11 @@ getCanon(uv)
     U8 * rstr;
   CODE:
     if(Hangul_IsS(uv)) {
-	RETVAL = call_decompHangul(uv);
+	SV * dst;
+	dst = newSV(1);
+	(void)SvPOK_only(dst);
+	sv_cat_decompHangul(dst, uv);
+	RETVAL = dst;
     } else {
 	rstr = ix ? dec_compat(uv) : dec_canonical(uv);
 	if(!rstr) XSRETURN_UNDEF;

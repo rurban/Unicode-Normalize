@@ -32,12 +32,14 @@ elsif ($DOXS) {
 	and File::Copy::move('Normalize.pm.XS',	'Normalize.pm');
 }
 
+my $PREREQ = $DOXS ? {} : {
+	Lingua::KO::Hangul::Util => 0.06,
+    }; # e.g., Module::Name => 1.1
+
 WriteMakefile(
     'NAME'		=> 'Unicode::Normalize',
     'VERSION_FROM'	=> 'Normalize.pm', # finds $VERSION
-    'PREREQ_PM'		=> {
-	Lingua::KO::Hangul::Util => 0.06,
-    }, # e.g., Module::Name => 1.1
+    'PREREQ_PM'		=> $PREREQ,
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM => 'Normalize.pod', # retrieve abstract from module
        AUTHOR     => 'SADAHIRO Tomoyuki <SADAHIRO@cpan.org>') : ()),
