@@ -1,4 +1,4 @@
-Unicode/Normalize version 0.07
+Unicode/Normalize version 0.08
 ===================================
 
 Unicode::Normalize - normalized forms of Unicode text
@@ -48,7 +48,7 @@ Carp
 Exporter
 File::Copy
 File::Spec
-Lingua::KO::Hangul::Util
+Lingua::KO::Hangul::Util 0.06
 unicore/CombiningClass.pl or unicode/CombiningClass.pl
 unicore/Decomposition.pl  or unicode/Decomposition.pl
 unicore/CompExcl.txt      or unicode/CompExcl.txt

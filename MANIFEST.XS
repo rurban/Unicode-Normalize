@@ -3,11 +3,11 @@ Changes
 Makefile.PL
 MANIFEST
 MANIFEST.NXS
-Normalize.pm.NXS
+mkheader
+Normalize.pod
 Normalize.pm
 Normalize.xs
-mkheader
-hangul.h
+Normalize.pm.NXS
 t/func.t
 t/norm.t
 t/test.t

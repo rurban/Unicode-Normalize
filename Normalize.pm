@@ -4,9 +4,9 @@ use 5.006;
 use strict;
 use warnings;
 use Carp;
-use Lingua::KO::Hangul::Util;
+use Lingua::KO::Hangul::Util 0.06;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -114,38 +114,6 @@ foreach my $key (keys %Compat) # exhaustive decomposition
    $Compat{$key} = [ getCompatList($key) ];
 }
 
-##
-## Hangul Syllables
-##
-use constant Hangul_SBase  => 0xAC00;
-use constant Hangul_SFinal => 0xD7A3;
-use constant Hangul_SCount =>  11172;
-
-use constant Hangul_LBase  => 0x1100;
-use constant Hangul_LFinal => 0x1112;
-use constant Hangul_LCount =>     19;
-
-use constant Hangul_VBase  => 0x1161;
-use constant Hangul_VFinal => 0x1175;
-use constant Hangul_VCount =>     21;
-
-use constant Hangul_TBase  => 0x11A7;
-use constant Hangul_TFinal => 0x11C2;
-use constant Hangul_TCount =>     28;
-
-sub Hangul_IsS  ($) { Hangul_SBase <= $_[0] && $_[0] <= Hangul_SFinal }
-
-sub Hangul_IsL  ($) { Hangul_LBase <= $_[0] && $_[0] <= Hangul_LFinal }
-
-sub Hangul_IsV  ($) { Hangul_VBase <= $_[0] && $_[0] <= Hangul_VFinal }
-
-sub Hangul_IsT  ($) { Hangul_TBase <= $_[0] && $_[0] <= Hangul_TFinal }
-
-sub Hangul_IsLV ($) {
-    Hangul_SBase <= $_[0] && $_[0] <= Hangul_SFinal
-    && (($_[0] - Hangul_SBase ) % Hangul_TCount) == 0
-}
-
 sub getCombinClass ($) { $Combin{$_[0]} || 0 }
 
 sub getCanon ($) { 
@@ -161,15 +129,8 @@ sub getCompat ($) {
 }
 
 sub getComposite ($$) {
-    if(Hangul_IsL($_[0]) && Hangul_IsV($_[1])) {
-	my $lindex = $_[0] - Hangul_LBase;
-	my $vindex = $_[1] - Hangul_VBase;
-	return
-	(Hangul_SBase + ($lindex * Hangul_VCount + $vindex) * Hangul_TCount);
-    }
-    if(Hangul_IsLV($_[0]) && Hangul_IsT($_[1])) {
-	return($_[0] + $_[1] - Hangul_TBase);
-    }
+    my $hangul = getHangulComposite($_[0], $_[1]);
+    return $hangul if $hangul;
     return $Compos{ pack('U*', @_[0,1]) } || 0;
 }
 
@@ -180,11 +141,13 @@ sub getExclusion ($) {
 ##
 ## string decompose(string, compat?)
 ##
+sub isHangul ($) { 0xAC00 <= $_[0] && $_[0] <= 0xD7A3 }
+
 sub decompose {
     my $hash = $_[1] ? \%Compat : \%Canon;
     return pack 'U*', map {
 	$hash->{ $_ } ? @{ $hash->{ $_ } } :
-	Hangul_IsS($_) ? decomposeHangul($_) : $_
+	isHangul($_) ? decomposeHangul($_) : $_
     } unpack('U*', $_[0]);
 }
 
@@ -224,7 +187,7 @@ sub compose
 
     for(my $s = 0; $s+1 < @src; $s++){
 	next unless defined $src[$s] && ! $Combin{ $src[$s] }; # S only
-#	my($c, $blocked);
+
 	my($c, $blocked, $uncomposed_cc);
 	for(my $j = $s+1; $j < @src && !$blocked; $j++){
 	    ($Combin{ $src[$j] } ? $uncomposed_cc : $blocked) = 1;
@@ -290,92 +253,3 @@ sub _getExclus { wantarray ? %Exclus : \%Exclus }
 
 1;
 __END__
-
-=head1 NAME
-
-Unicode::Normalize - normalized forms of Unicode text
-
-=head1 SYNOPSIS
-
-  use Unicode::Normalize;
-
-  $string_NFD  = NFD($raw_string);  # Normalization Form D
-  $string_NFC  = NFC($raw_string);  # Normalization Form C
-  $string_NFKD = NFKD($raw_string); # Normalization Form KD
-  $string_NFKC = NFKC($raw_string); # Normalization Form KC
-
-   or
-
-  use Unicode::Normalize 'normalize';
-
-  $string_NFD  = normalize('D',  $raw_string);  # Normalization Form D
-  $string_NFC  = normalize('C',  $raw_string);  # Normalization Form C
-  $string_NFKD = normalize('KD', $raw_string);  # Normalization Form KD
-  $string_NFKC = normalize('KC', $raw_string);  # Normalization Form KC
-
-=head1 DESCRIPTION
-
-=over 4
-
-=item C<$string_NFD = NFD($raw_string)>
-
-returns the Normalization Form D (formed by canonical decomposition).
-
-
-=item C<$string_NFC = NFC($raw_string)>
-
-returns the Normalization Form C (formed by canonical decomposition
-followed by canonical composition).
-
-=item C<$string_NFKD = NFKD($raw_string)>
-
-returns the Normalization Form KD (formed by compatibility decomposition).
-
-=item C<$string_NFKC = NFKC($raw_string)>
-
-returns the Normalization Form KC (formed by compatibility decomposition
-followed by B<canonical> composition).
-
-=item C<$normalized_string = normalize($form_name, $raw_string)>
-
-As C<$form_name>, one of the following names must be given.
-
-  'C'  or 'NFC'  for Normalization Form C
-  'D'  or 'NFD'  for Normalization Form D
-  'KC' or 'NFKC' for Normalization Form KC
-  'KD' or 'NFKD' for Normalization Form KD
-
-=back
-
-=head2 EXPORT
-
-C<NFC>, C<NFD>, C<NFKC>, C<NFKD>: by default.
-
-C<normalize>: on request.
-
-=head1 AUTHOR
-
-SADAHIRO Tomoyuki, E<lt>SADAHIRO@cpan.orgE<gt>
-
-  http://homepage1.nifty.com/nomenclator/perl/
-
-  Copyright(C) 2001, SADAHIRO Tomoyuki. Japan. All rights reserved.
-
-  This program is free software; you can redistribute it and/or 
-  modify it under the same terms as Perl itself.
-
-=head1 SEE ALSO
-
-=over 4
-
-=item L<Lingua::KO::Hangul::Util>
-
-utility functions for Hangul Syllables
-
-=item http://www.unicode.org/unicode/reports/tr15/
-
-Unicode Normalization Forms - UAX #15
-
-=back
-
-=cut

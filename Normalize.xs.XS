@@ -9,8 +9,6 @@
 #include "unfcmp.h"
 #include "unfexc.h"
 
-#include "hangul.h"
-
 /* Perl 5.6.1 ? */
 #ifndef uvuni_to_utf8
 #define uvuni_to_utf8   uv_to_utf8
@@ -24,6 +22,29 @@
 /* At present, char > 0x10ffff are unaffected without complaint, right? */
 #define VALID_UTF_MAX    (0x10ffff)
 #define OVER_UTF_MAX(uv) (VALID_UTF_MAX < (uv))
+
+/* HANGUL_H */
+#define Hangul_SBase  0xAC00
+#define Hangul_SFinal 0xD7A3
+
+#define Hangul_LBase  0x1100
+#define Hangul_LFinal 0x1112
+
+#define Hangul_VBase  0x1161
+#define Hangul_VFinal 0x1175
+#define Hangul_VCount     21
+
+#define Hangul_TBase  0x11A7
+#define Hangul_TFinal 0x11C2
+#define Hangul_TCount     28
+
+#define Hangul_IsS(u)  ((Hangul_SBase <= (u)) && ((u) <= Hangul_SFinal))
+#define Hangul_IsN(u)  (! (((u) - Hangul_SBase) % Hangul_TCount))
+#define Hangul_IsLV(u) (Hangul_IsS(u) && Hangul_IsN(u))
+#define Hangul_IsL(u)  ((Hangul_LBase <= (u)) && ((u) <= Hangul_LFinal))
+#define Hangul_IsV(u)  ((Hangul_VBase <= (u)) && ((u) <= Hangul_VFinal))
+#define Hangul_IsT(u)  ((Hangul_TBase  < (u)) && ((u) <= Hangul_TFinal))
+/* HANGUL_H */
 
 /* this is used for canonical ordering of combining characters (c.c.). */
 typedef struct {
@@ -290,9 +311,8 @@ compose(arg)
 	    } else {
 		uvComp = getComposite(uvS, uv);
 
-		if( uvComp && ! getExclusion(uvComp) && 
-			( curCC || (t == tmp_start) )
-		)  /* S + C + S => S-S + C would be blocked. XXX */
+	/* S + C + S => S-S + C would be also blocked. */
+		if( uvComp && ! getExclusion(uvComp) && preCC <= curCC)
 		{
 		    /* preCC not changed to curCC */
 		    uvS = uvComp;

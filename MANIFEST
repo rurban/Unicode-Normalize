@@ -1,13 +1,13 @@
+README
 Changes
 Makefile.PL
 MANIFEST
 MANIFEST.XS
 mkheader
-hangul.h
+Normalize.pod
 Normalize.pm
 Normalize.pm.XS
 Normalize.xs.XS
-README
 t/func.t
 t/test.t
 t/norm.t

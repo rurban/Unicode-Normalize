@@ -1,5 +1,8 @@
 Revision history for Perl extension Unicode::Normalize.
 
+0.08  Thu Nov 01 23:20:42 2001
+	- use Lingua::KO::Hangul::Util 0.06 and remove "hangul.h".
+
 0.07  Wed Oct 31 22:06:42 2001
 	- modify internal. decompose() - reorder() - compose().
 
