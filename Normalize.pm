@@ -4,9 +4,8 @@ use 5.006;
 use strict;
 use warnings;
 use Carp;
-use Lingua::KO::Hangul::Util 0.06;
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -14,9 +13,16 @@ our @ISA = qw(Exporter);
 our @EXPORT = qw( NFC NFD NFKC NFKD );
 our @EXPORT_OK = qw(
     normalize decompose reorder compose
-    getCanon getCompat getComposite getCombinClass isExclusion
+    checkNFD checkNFKD checkNFC checkNFKC check
+    getCanon getCompat getComposite getCombinClass
+    isExclusion isSingleton isNonStDecomp isComp2nd isComp_Ex
+    isNFD_NO isNFC_NO isNFC_MAYBE isNFKD_NO isNFKC_NO isNFKC_MAYBE
 );
-our %EXPORT_TAGS = ( all => [ @EXPORT, @EXPORT_OK ] );
+our %EXPORT_TAGS = (
+    all       => [ @EXPORT, @EXPORT_OK ],
+    normalize => [ @EXPORT, qw/normalize decompose reorder compose/ ],
+    check     => [ qw/checkNFD checkNFKD checkNFC checkNFKC check/ ],
+);
 
 our $Combin = do "unicore/CombiningClass.pl"
     || do "unicode/CombiningClass.pl"
@@ -26,11 +32,14 @@ our $Decomp = do "unicore/Decomposition.pl"
     || do "unicode/Decomposition.pl"
     || croak "$PACKAGE: Decomposition.pl not found";
 
-our %Combin; # $codepoint => $number      : combination class
-our %Canon;  # $codepoint => \@codepoints : canonical decomp.
-our %Compat; # $codepoint => \@codepoints : compat. decomp.
-our %Compos; # $string    => $codepoint   : composite
-our %Exclus; # $codepoint => 1            : composition exclusions
+our %Combin;  # $codepoint => $number      : combination class
+our %Canon;   # $codepoint => \@codepoints : canonical decomp.
+our %Compat;  # $codepoint => \@codepoints : compat. decomp.
+our %Compos;  # $string    => $codepoint   : composite
+our %Exclus;  # $codepoint => 1            : composition exclusions
+our %Single;  # $codepoint => 1            : singletons
+our %NonStD;  # $codepoint => 1            : non-starter decompositions
+our %Comp2nd; # $codepoint => 1            : 2nd character of a composition
 
 {
     my($f, $fh);
@@ -45,10 +54,10 @@ our %Exclus; # $codepoint => 1            : composition exclusions
 	$f = undef;
     }
     croak "$PACKAGE: CompExcl.txt not found in @INC" unless defined $f;
-    while(<$fh>){
+    while (<$fh>) {
 	next if /^#/ or /^$/;
 	s/#.*//;
-	$Exclus{ hex($1) } =1 if /([0-9A-Fa-f]+)/;
+	$Exclus{ hex($1) } = 1 if /([0-9A-Fa-f]+)/;
     }
     close $fh;
 }
@@ -58,38 +67,111 @@ our %Exclus; # $codepoint => 1            : composition exclusions
 ##
 sub _getHexArray { map hex(), $_[0] =~ /([0-9A-Fa-f]+)/g }
 
-while($Combin =~ /(.+)/g) {
+while ($Combin =~ /(.+)/g) {
     my @tab = split /\t/, $1;
     my $ini = hex $tab[0];
-    if($tab[1] eq '') {
+    if ($tab[1] eq '') {
 	$Combin{ $ini } = $tab[2];
     } else {
 	$Combin{ $_ } = $tab[2] foreach $ini .. hex($tab[1]);
     }
 }
 
-while($Decomp =~ /(.+)/g) {
+while ($Decomp =~ /(.+)/g) {
     my @tab = split /\t/, $1;
     my $compat = $tab[2] =~ s/<[^>]+>//;
     my $dec = [ _getHexArray($tab[2]) ]; # decomposition
     my $com = pack('U*', @$dec); # composable sequence
     my $ini = hex($tab[0]);
-    if($tab[1] eq '') {
+    if ($tab[1] eq '') {
 	$Compat{ $ini } = $dec;
-	if(! $compat) {
+	if (! $compat) {
 	    $Canon{  $ini } = $dec;
-	    $Compos{ $com } = $ini if @$dec > 1;
+
+	    if (@$dec > 1) {
+		if ($Combin{ $dec->[0] }) {
+		    $NonStD{ $ini } = 1;
+		} else {
+		    $Compos{ $com } = $ini;
+		}
+	    } else {
+		$Single{ $ini } = 1;
+	    }
+
+	    $Comp2nd{ $dec->[1] } = 1
+		if @$dec == 2 && ! $Exclus{$ini} && ! $Combin{ $dec->[0] };
         }
     } else {
-	foreach my $u ($ini .. hex($tab[1])){
+	foreach my $u ($ini .. hex($tab[1])) {
 	    $Compat{ $u } = $dec;
-		if(! $compat){
+	    if (! $compat) {
 		$Canon{  $u }   = $dec;
-		$Compos{ $com } = $ini if @$dec > 1;
+
+		if (@$dec > 1) {
+		    if ($Combin{ $dec->[0] }) {
+			$NonStD{ $u } = 1;
+		    } else {
+			$Compos{ $com } = $u;
+		    }
+		} else {
+		    $Single{ $u } = 1;
+		}
+
+		$Comp2nd{ $dec->[1] } = 1
+		    if @$dec == 2 && ! $Exclus{$u} && ! $Combin{ $dec->[0] };
 	    }
 	}
     }
 }
+
+# modern HANGUL JUNGSEONG and HANGUL JONGSEONG jamo
+foreach (0x1161..0x1175, 0x11A8..0x11C2) {
+    $Comp2nd{ $_ } = 1;
+}
+
+##########
+use constant SBase  => 0xAC00;
+use constant SFinal => 0xD7A3; # SBase -1 + SCount
+use constant SCount =>  11172; # LCount * NCount
+use constant NCount =>    588; # VCount * TCount
+use constant LBase  => 0x1100;
+use constant LFinal => 0x1112;
+use constant LCount =>     19; # scalar @JamoL
+use constant VBase  => 0x1161;
+use constant VFinal => 0x1175;
+use constant VCount =>     21; # scalar @JamoV
+use constant TBase  => 0x11A7;
+use constant TFinal => 0x11C2;
+use constant TCount =>     28; # scalar @JamoT
+
+sub getHangulComposite ($$) {
+    if ((LBase <= $_[0] && $_[0] <= LFinal)
+     && (VBase <= $_[1] && $_[1] <= VFinal)) {
+	my $lindex = $_[0] - LBase;
+	my $vindex = $_[1] - VBase;
+	return (SBase + ($lindex * VCount + $vindex) * TCount);
+    }
+    if ((SBase <= $_[0] && $_[0] <= SFinal && (($_[0] - SBase ) % TCount) == 0)
+     && (TBase  < $_[1] && $_[1] <= TFinal)) {
+	return($_[0] + $_[1] - TBase);
+    }
+    return undef;
+}
+
+sub decomposeHangul {
+    my $SIndex = $_[0] - SBase;
+    my $LIndex = int( $SIndex / NCount);
+    my $VIndex = int(($SIndex % NCount) / TCount);
+    my $TIndex =      $SIndex % TCount;
+    my @ret = (
+       LBase + $LIndex,
+       VBase + $VIndex,
+      $TIndex ? (TBase + $TIndex) : (),
+    );
+    wantarray ? @ret : pack('U*', @ret);
+}
+
+##########
 
 sub getCanonList {
     my @src = @_;
@@ -118,13 +200,17 @@ sub getCombinClass ($) { $Combin{$_[0]} || 0 }
 sub getCanon ($) { 
     return exists $Canon{$_[0]}
 	? pack('U*', @{ $Canon{$_[0]} })
-	: scalar decomposeHangul($_[0]);
+	: (SBase <= $_[0] && $_[0] <= SFinal)
+	    ? scalar decomposeHangul($_[0])
+	    : undef;
 }
 
 sub getCompat ($) {
     return exists $Compat{$_[0]}
 	? pack('U*', @{ $Compat{$_[0]} })
-	: scalar decomposeHangul($_[0]);
+	: (SBase <= $_[0] && $_[0] <= SFinal)
+	    ? scalar decomposeHangul($_[0])
+	    : undef;
 }
 
 sub getComposite ($$) {
@@ -133,8 +219,26 @@ sub getComposite ($$) {
     return $Compos{ pack('U*', @_[0,1]) } || undef;
 }
 
-sub isExclusion ($) {
-    return exists $Exclus{$_[0]} ? 1 : 0;
+sub isExclusion  ($) { exists $Exclus{$_[0]} }
+sub isSingleton  ($) { exists $Single{$_[0]} }
+sub isNonStDecomp($) { exists $NonStD{$_[0]} }
+sub isComp2nd    ($) { exists $Comp2nd{$_[0]} }
+
+sub isNFC_MAYBE ($) { exists $Comp2nd{$_[0]} }
+sub isNFKC_MAYBE($) { exists $Comp2nd{$_[0]} }
+sub isNFD_NO    ($) {
+    exists $Canon {$_[0]} || (SBase <= $_[0] && $_[0] <= SFinal) }
+sub isNFKD_NO   ($) {
+    exists $Compat{$_[0]} || (SBase <= $_[0] && $_[0] <= SFinal) }
+sub isComp_Ex   ($) {
+    exists $Exclus{$_[0]} || exists $Single{$_[0]} || exists $NonStD{$_[0]} }
+sub isNFC_NO    ($) {
+    exists $Exclus{$_[0]} || exists $Single{$_[0]} || exists $NonStD{$_[0]} }
+sub isNFKC_NO   ($) {
+    return 1  if $Exclus{$_[0]} || $Single{$_[0]} || $NonStD{$_[0]};
+    return '' if (SBase <= $_[0] && $_[0] <= SFinal) || !exists $Compat{$_[0]};
+    return 1  if ! exists $Canon{$_[0]};
+    return pack('N*', @{ $Canon{$_[0]} }) ne pack('N*', @{ $Compat{$_[0]} });
 }
 
 ##
@@ -145,7 +249,7 @@ sub decompose ($;$)
     my $hash = $_[1] ? \%Compat : \%Canon;
     return pack 'U*', map {
 	$hash->{ $_ } ? @{ $hash->{ $_ } } :
-	0xAC00 <= $_ && $_ <= 0xD7A3 ? decomposeHangul($_) : $_
+	    (SBase <= $_ && $_ <= SFinal) ? decomposeHangul($_) : $_
     } unpack('U*', $_[0]);
 }
 
@@ -156,7 +260,7 @@ sub reorder ($)
 {
     my @src = unpack('U*', $_[0]);
 
-    for(my $i=0; $i < @src;){
+    for (my $i=0; $i < @src;) {
 	$i++, next if ! $Combin{ $src[$i] };
 
 	my $ini = $i;
@@ -185,19 +289,19 @@ sub compose ($)
 {
     my @src = unpack('U*', $_[0]);
 
-    for(my $s = 0; $s+1 < @src; $s++){
+    for (my $s = 0; $s+1 < @src; $s++) {
 	next unless defined $src[$s] && ! $Combin{ $src[$s] };
 	 # S only; removed or combining are skipped as a starter.
 
 	my($c, $blocked, $uncomposed_cc);
-	for(my $j = $s+1; $j < @src && !$blocked; $j++){
+	for (my $j = $s+1; $j < @src && !$blocked; $j++) {
 	    ($Combin{ $src[$j] } ? $uncomposed_cc : $blocked) = 1;
 
-	    # S + C + S => S-S + C would be blocked. XXX 
+	    # S + C + S => S-S + C would be blocked.
 	    next if $blocked && $uncomposed_cc;
 
 	    # blocked by same CC
-	    next if defined $src[$j-1]   && $Combin{ $src[$j-1] } 
+	    next if defined $src[$j-1]   && $Combin{ $src[$j-1] }
 		&& $Combin{ $src[$j-1] } == $Combin{ $src[$j] };
 
 	    $c = getComposite($src[$s], $src[$j]);
@@ -207,7 +311,7 @@ sub compose ($)
 
 	    # replace by composite
 	    $src[$s] = $c; $src[$j] = undef;
-	    if($blocked) { $blocked = 0 } else { -- $uncomposed_cc }
+	    if ($blocked) { $blocked = 0 } else { -- $uncomposed_cc }
 	}
     }
     return pack 'U*', grep defined(), @src;
@@ -221,7 +325,6 @@ use constant COMPAT => 1;
 
 sub NFD  ($) { reorder(decompose($_[0])) }
 sub NFKD ($) { reorder(decompose($_[0], COMPAT)) }
-
 sub NFC  ($) { compose(reorder(decompose($_[0]))) }
 sub NFKC ($) { compose(reorder(decompose($_[0], COMPAT))) }
 
@@ -238,17 +341,84 @@ sub normalize($$)
 }
 
 ##
-## for Debug
+## quick check
 ##
-sub _getCombin { wantarray ? %Combin : \%Combin }
-sub _getCanon  { wantarray ? %Canon  : \%Canon  }
-sub _getCompat { wantarray ? %Compat : \%Compat }
-sub _getCompos { wantarray ? %Compos : \%Compos }
-sub _getExclus { wantarray ? %Exclus : \%Exclus }
+sub checkNFD ($)
+{
+    my $preCC = 0;
+    my $curCC;
+    for my $uv (unpack('U*', $_[0])) {
+	$curCC = $Combin{ $uv } || 0;
+	return '' if $preCC > $curCC && $curCC != 0;
+	return '' if exists $Canon{$uv} || (SBase <= $uv && $uv <= SFinal);
+	$preCC = $curCC;
+    }
+    return 1;
+}
+
+sub checkNFKD ($)
+{
+    my $preCC = 0;
+    my $curCC;
+    for my $uv (unpack('U*', $_[0])) {
+	$curCC = $Combin{ $uv } || 0;
+	return '' if $preCC > $curCC && $curCC != 0;
+	return '' if exists $Compat{$uv} || (SBase <= $uv && $uv <= SFinal);
+	$preCC = $curCC;
+    }
+    return 1;
+}
+
+sub checkNFC ($)
+{
+    my $preCC = 0;
+    my($curCC, $isMAYBE);
+    for my $uv (unpack('U*', $_[0])) {
+	$curCC = $Combin{ $uv } || 0;
+	return '' if $preCC > $curCC && $curCC != 0;
+
+	if (isNFC_MAYBE($uv)) {
+	    $isMAYBE = 1;
+	} elsif (isNFC_NO($uv)) {
+	    return '';
+	}
+	$preCC = $curCC;
+    }
+    return $isMAYBE ? undef : 1;
+}
+
+sub checkNFKC ($)
+{
+    my $preCC = 0;
+    my($curCC, $isMAYBE);
+    for my $uv (unpack('U*', $_[0])) {
+	$curCC = $Combin{ $uv } || 0;
+	return '' if $preCC > $curCC && $curCC != 0;
+
+	if (isNFKC_MAYBE($uv)) {
+	    $isMAYBE = 1;
+	} elsif (isNFKC_NO($uv)) {
+	    return '';
+	}
+	$preCC = $curCC;
+    }
+    return $isMAYBE ? undef : 1;
+}
+
+sub check($$)
+{
+    my $form = shift;
+    $form =~ s/^NF//;
+    return
+	$form eq 'D'  ? checkNFD ($_[0]) :
+	$form eq 'C'  ? checkNFC ($_[0]) :
+	$form eq 'KD' ? checkNFKD($_[0]) :
+	$form eq 'KC' ? checkNFKC($_[0]) :
+      croak $PACKAGE."::check: invalid form name: $form";
+}
 
 1;
 __END__
-
 
 =head1 NAME
 
@@ -258,19 +428,19 @@ Unicode::Normalize - normalized forms of Unicode text
 
   use Unicode::Normalize;
 
-  $string_NFD  = NFD($raw_string);  # Normalization Form D
-  $string_NFC  = NFC($raw_string);  # Normalization Form C
-  $string_NFKD = NFKD($raw_string); # Normalization Form KD
-  $string_NFKC = NFKC($raw_string); # Normalization Form KC
+  $NFD_string  = NFD($string);  # Normalization Form D
+  $NFC_string  = NFC($string);  # Normalization Form C
+  $NFKD_string = NFKD($string); # Normalization Form KD
+  $NFKC_string = NFKC($string); # Normalization Form KC
 
    or
 
   use Unicode::Normalize 'normalize';
 
-  $string_NFD  = normalize('D',  $raw_string);  # Normalization Form D
-  $string_NFC  = normalize('C',  $raw_string);  # Normalization Form C
-  $string_NFKD = normalize('KD', $raw_string);  # Normalization Form KD
-  $string_NFKC = normalize('KC', $raw_string);  # Normalization Form KC
+  $NFD_string  = normalize('D',  $string);  # Normalization Form D
+  $NFC_string  = normalize('C',  $string);  # Normalization Form C
+  $NFKD_string = normalize('KD', $string);  # Normalization Form KD
+  $NFKC_string = normalize('KC', $string);  # Normalization Form KC
 
 =head1 DESCRIPTION
 
@@ -278,26 +448,25 @@ Unicode::Normalize - normalized forms of Unicode text
 
 =over 4
 
-=item C<$string_NFD = NFD($raw_string)>
+=item C<$NFD_string = NFD($string)>
 
 returns the Normalization Form D (formed by canonical decomposition).
 
-
-=item C<$string_NFC = NFC($raw_string)>
+=item C<$NFC_string = NFC($string)>
 
 returns the Normalization Form C (formed by canonical decomposition
 followed by canonical composition).
 
-=item C<$string_NFKD = NFKD($raw_string)>
+=item C<$NFKD_string = NFKD($string)>
 
 returns the Normalization Form KD (formed by compatibility decomposition).
 
-=item C<$string_NFKC = NFKC($raw_string)>
+=item C<$NFKC_string = NFKC($string)>
 
 returns the Normalization Form KC (formed by compatibility decomposition
 followed by B<canonical> composition).
 
-=item C<$normalized_string = normalize($form_name, $raw_string)>
+=item C<$normalized_string = normalize($form_name, $string)>
 
 As C<$form_name>, one of the following names must be given.
 
@@ -308,40 +477,165 @@ As C<$form_name>, one of the following names must be given.
 
 =back
 
+=head2 Decomposition and Composition
+
+=over 4
+
+=item C<$decomposed_string = decompose($string)>
+
+=item C<$decomposed_string = decompose($string, $useCompatMapping)>
+
+Decompose the specified string and returns the result.
+
+If the second parameter (a boolean) is omitted or false, decomposes it
+using the Canonical Decomposition Mapping.
+If true, decomposes it using the Compatibility Decomposition Mapping.
+
+The string returned is not always in NFD/NFKD.
+Reordering may be required.
+
+    $NFD_string  = reorder(decompose($string));       # eq. to NFD()
+    $NFKD_string = reorder(decompose($string, TRUE)); # eq. to NFKD()
+
+=item C<$reordered_string  = reorder($string)>
+
+Reorder the combining characters and the like in the canonical ordering
+and returns the result.
+
+E.g., when you have a list of NFD/NFKD strings,
+you can get the concatenated NFD/NFKD string from them, saying
+
+    $concat_NFD  = reorder(join '', @NFD_strings);
+    $concat_NFKD = reorder(join '', @NFKD_strings);
+
+=item C<$composed_string   = compose($string)>
+
+Returns the string where composable pairs are composed.
+
+E.g., when you have a NFD/NFKD string,
+you can get its NFC/NFKC string, saying
+
+    $NFC_string  = compose($NFD_string);
+    $NFKC_string = compose($NFKD_string);
+
+=back
+
+=head2 Quick Check
+
+(see Annex 8, UAX #15; F<DerivedNormalizationProperties.txt>)
+
+The following functions check whether the string is in that normalization form.
+
+The result returned will be:
+
+    YES     The string is in that normalization form.
+    NO      The string is not in that normalization form.
+    MAYBE   Dubious. Maybe yes, maybe no.
+
+=over 4
+
+=item C<$result = checkNFD($string)>
+
+returns YES (1) or NO (empty string).
+
+=item C<$result = checkNFC($string)>
+
+returns YES (1), NO (empty string), or MAYBE (undef).
+
+=item C<$result = checkNFKD($string)>
+
+returns YES (1) or NO (empty string).
+
+=item C<$result = checkNFKC($string)>
+
+returns YES (1), NO (empty string), or MAYBE (undef).
+
+=item C<$result = check($form_name, $string)>
+
+returns YES (1), NO (empty string), or MAYBE (undef).
+
+C<$form_name> is alike to that for C<normalize()>.
+
+=back
+
+B<Note>
+
+In the cases of NFD and NFKD, the answer must be either C<YES> or C<NO>.
+The answer C<MAYBE> may be returned in the cases of NFC and NFKC.
+
+A MAYBE-NFC/NFKC string should contain at least
+one combining character or the like.
+For example, C<COMBINING ACUTE ACCENT> has
+the MAYBE_NFC/MAYBE_NFKC property.
+Both C<checkNFC("A\N{COMBINING ACUTE ACCENT}")>
+and C<checkNFC("B\N{COMBINING ACUTE ACCENT}")> will return C<MAYBE>.
+Though, C<"A\N{COMBINING ACUTE ACCENT}"> is not in NFC 
+(its NFC is C<"\N{LATIN CAPITAL LETTER A WITH ACUTE}">),
+while C<"B\N{COMBINING ACUTE ACCENT}"> is in NFC.
+
+If you want to check exactly, compare the string with its NFC/NFKC; i.e.,
+
+    $string eq NFC($string)    # more thorough than checkNFC($string)
+    $string eq NFKC($string)   # more thorough than checkNFKC($string)
+
 =head2 Character Data
 
 These functions are interface of character data used internally.
-If you want only to get unicode normalization forms, 
-you don't need call them yourself.
+If you want only to get Unicode normalization forms, you don't need
+call them yourself.
 
 =over 4
 
 =item C<$canonical_decomposed = getCanon($codepoint)>
 
-=item C<$compatibility_decomposed = getCompat($codepoint)>
-
-If the character of the specified codepoint is canonically or 
-compatibility decomposable (including Hangul Syllables),
-returns the B<completely decomposed> string equivalent to it.
+If the character of the specified codepoint is canonically
+decomposable (including Hangul Syllables),
+returns the B<completely decomposed> string canonically equivalent to it.
 
 If it is not decomposable, returns undef.
 
-=item C<$uv_composite = getComposite($uv_here, $uv_next)>
+=item C<$compatibility_decomposed = getCompat($codepoint)>
+
+If the character of the specified codepoint is compatibility
+decomposable (including Hangul Syllables),
+returns the B<completely decomposed> string compatibility equivalent to it.
+
+If it is not decomposable, returns undef.
+
+=item C<$codepoint_composite = getComposite($codepoint_here, $codepoint_next)>
 
 If two characters here and next (as codepoints) are composable
-(including Hangul Jamo/Syllables and Exclusions),
+(including Hangul Jamo/Syllables and Composition Exclusions),
 returns the codepoint of the composite.
 
 If they are not composable, returns undef.
 
 =item C<$combining_class = getCombinClass($codepoint)>
 
-Returns the combining class as integer of the character.
+Returns the combining class of the character as an integer.
 
 =item C<$is_exclusion = isExclusion($codepoint)>
 
+Returns a boolean whether the character of the specified codepoint
+is a composition exclusion.
+
+=item C<$is_singleton = isSingleton($codepoint)>
+
 Returns a boolean whether the character of the specified codepoint is
-a composition exclusion.
+a singleton.
+
+=item C<$is_non_startar_decomposition = isNonStDecomp($codepoint)>
+
+Returns a boolean whether the canonical decomposition
+of the character of the specified codepoint
+is a Non-Starter Decomposition.
+
+=item C<$may_be_composed_with_prev_char = isComp2nd($codepoint)>
+
+Returns a boolean whether the character of the specified codepoint
+may be composed with the previous one in a certain composition
+(including Hangul Compositions, but excluding
+Composition Exclusions and Non-Starter Decompositions).
 
 =back
 
@@ -370,10 +664,11 @@ SADAHIRO Tomoyuki, E<lt>SADAHIRO@cpan.orgE<gt>
 
 Unicode Normalization Forms - UAX #15
 
-=item L<Lingua::KO::Hangul::Util>
+=item http://www.unicode.org/Public/UNIDATA/DerivedNormalizationProperties.txt
 
-utility functions for Hangul Syllables
+Derived Normalization Properties
 
 =back
 
 =cut
+

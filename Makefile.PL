@@ -30,24 +30,19 @@ if ($arg =~ /^xs/i and -f "Normalize.xs.XS") {
 	and File::Copy::move('Normalize.pm.XS',	'Normalize.pm');
 }
 
-my $PREREQ =  { # for NON-XS
-	Lingua::KO::Hangul::Util => 0.06,
-    }; # e.g., Module::Name => 1.1
 my $clean = {};
 
 if(-f "Normalize.xs") {
     print STDERR "Making header files for XS...\n";
 
     do "mkheader";
-    $PREREQ = {};
     $clean = {FILES=> 'unfcan.h unfcmb.h unfcmp.h unfcpt.h unfexc.h'};
 }
 
-
 WriteMakefile(
+    'INSTALLDIRS' => $] > 5.007 ? 'perl' : 'site', # XXXXXXXXXXXXX
     'NAME'		=> 'Unicode::Normalize',
     'VERSION_FROM'	=> 'Normalize.pm', # finds $VERSION
-    'PREREQ_PM'		=> $PREREQ,
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM => 'Normalize.pm', # retrieve abstract from module
        AUTHOR     => 'SADAHIRO Tomoyuki <SADAHIRO@cpan.org>') : ()),
