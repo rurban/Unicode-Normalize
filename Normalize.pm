@@ -10,8 +10,11 @@ use 5.006;
 use strict;
 use warnings;
 use Carp;
+use File::Spec;
 
-our $VERSION = '0.17';
+our $IsEBCDIC = ord("A") != 0x41;
+
+our $VERSION = '0.20';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -30,6 +33,21 @@ our %EXPORT_TAGS = (
     check     => [ qw/checkNFD checkNFKD checkNFC checkNFKC check/ ],
 );
 
+##########
+use constant SBase  => 0xAC00;
+use constant SFinal => 0xD7A3; # SBase -1 + SCount
+use constant SCount =>  11172; # LCount * NCount
+use constant NCount =>    588; # VCount * TCount
+use constant LBase  => 0x1100;
+use constant LFinal => 0x1112;
+use constant LCount =>     19;
+use constant VBase  => 0x1161;
+use constant VFinal => 0x1175;
+use constant VCount =>     21;
+use constant TBase  => 0x11A7;
+use constant TFinal => 0x11C2;
+use constant TCount =>     28;
+
 our $Combin = do "unicore/CombiningClass.pl"
     || do "unicode/CombiningClass.pl"
     || croak "$PACKAGE: CombiningClass.pl not found";
@@ -38,19 +56,19 @@ our $Decomp = do "unicore/Decomposition.pl"
     || do "unicode/Decomposition.pl"
     || croak "$PACKAGE: Decomposition.pl not found";
 
-our %Combin;  # $codepoint => $number      : combination class
-our %Canon;   # $codepoint => \@codepoints : canonical decomp.
-our %Compat;  # $codepoint => \@codepoints : compat. decomp.
-our %Compos;  # $1st,$2nd  => $codepoint   : composite
-our %Exclus;  # $codepoint => 1            : composition exclusions
-our %Single;  # $codepoint => 1            : singletons
-our %NonStD;  # $codepoint => 1            : non-starter decompositions
-our %Comp2nd; # $codepoint => 1            : 2nd character of a composition
+our %Combin;	# $codepoint => $number    : combination class
+our %Canon;	# $codepoint => \@codepoints : canonical decomp.
+our %Compat;	# $codepoint => \@codepoints : compat. decomp.
+our %Exclus;	# $codepoint => 1          : composition exclusions
+our %Single;	# $codepoint => 1          : singletons
+our %NonStD;	# $codepoint => 1          : non-starter decompositions
+
+our %Comp2nd;	# $codepoint => 1          : may be composed with a prev char.
+our %Compos;	# $1st,$2nd  => $codepoint : composite
 
 {
     my($f, $fh);
     foreach my $d (@INC) {
-	use File::Spec;
 	$f = File::Spec->catfile($d, "unicore", "CompositionExclusions.txt");
 	last if open($fh, $f);
 	$f = File::Spec->catfile($d, "unicore", "CompExcl.txt");
@@ -60,6 +78,7 @@ our %Comp2nd; # $codepoint => 1            : 2nd character of a composition
 	$f = undef;
     }
     croak "$PACKAGE: CompExcl.txt not found in @INC" unless defined $f;
+
     while (<$fh>) {
 	next if /^#/ or /^$/;
 	s/#.*//;
@@ -72,6 +91,18 @@ our %Comp2nd; # $codepoint => 1            : 2nd character of a composition
 ## converts string "hhhh hhhh hhhh" to a numeric list
 ##
 sub _getHexArray { map hex, $_[0] =~ /([0-9A-Fa-f]+)/g }
+
+sub _pack_U {
+    return $IsEBCDIC
+	? pack('U*', map utf8::unicode_to_native($_), @_)
+	: pack('U*', @_);
+}
+
+sub _unpack_U {
+    return $IsEBCDIC
+	? map(utf8::native_to_unicode($_), unpack 'U*', shift)
+	: unpack('U*', shift);
+}
 
 while ($Combin =~ /(.+)/g) {
     my @tab = split /\t/, $1;
@@ -87,31 +118,31 @@ while ($Decomp =~ /(.+)/g) {
     my @tab = split /\t/, $1;
     my $compat = $tab[2] =~ s/<[^>]+>//;
     my $dec = [ _getHexArray($tab[2]) ]; # decomposition
-    my $ini = hex($tab[0]);
+    my $ini = hex($tab[0]); # initial decomposable character
+
     if ($tab[1] eq '') {
 	$Compat{ $ini } = $dec;
 
 	if (! $compat) {
-	    $Canon{  $ini } = $dec;
+	    $Canon{ $ini } = $dec;
 
 	    if (@$dec == 2) {
 		if ($Combin{ $dec->[0] }) {
 		    $NonStD{ $ini } = 1;
 		} else {
 		    $Compos{ $dec->[0] }{ $dec->[1] } = $ini;
+		    $Comp2nd{ $dec->[1] } = 1 if ! $Exclus{$ini};
 		}
 	    } elsif (@$dec == 1) {
 		$Single{ $ini } = 1;
 	    } else {
-		croak("Weird Decomposition Mapping at U+$tab[0]");
+		croak("Weird Canonical Decomposition of U+$tab[0]");
 	    }
-
-	    $Comp2nd{ $dec->[1] } = 1
-		if @$dec == 2 && ! $Exclus{$ini} && ! $Combin{ $dec->[0] };
-        }
+	}
     } else {
 	foreach my $u ($ini .. hex($tab[1])) {
 	    $Compat{ $u } = $dec;
+
 	    if (! $compat) {
 		$Canon{ $u } = $dec;
 
@@ -120,39 +151,54 @@ while ($Decomp =~ /(.+)/g) {
 			$NonStD{ $u } = 1;
 		    } else {
 			$Compos{ $dec->[0] }{ $dec->[1] } = $u;
+			$Comp2nd{ $dec->[1] } = 1 if ! $Exclus{$u};
 		    }
 		} elsif (@$dec == 1) {
 		    $Single{ $u } = 1;
 		} else {
-		    croak("Weird Decomposition Mapping at U+$tab[0]");
+		    croak("Weird Canonical Decomposition of U+$tab[0]");
 		}
-
-		$Comp2nd{ $dec->[1] } = 1
-		    if @$dec == 2 && ! $Exclus{$u} && ! $Combin{ $dec->[0] };
 	    }
 	}
     }
 }
 
 # modern HANGUL JUNGSEONG and HANGUL JONGSEONG jamo
-foreach (0x1161..0x1175, 0x11A8..0x11C2) {
-    $Comp2nd{ $_ } = 1;
+foreach my $j (0x1161..0x1175, 0x11A8..0x11C2) {
+    $Comp2nd{$j} = 1;
 }
 
-##########
-use constant SBase  => 0xAC00;
-use constant SFinal => 0xD7A3; # SBase -1 + SCount
-use constant SCount =>  11172; # LCount * NCount
-use constant NCount =>    588; # VCount * TCount
-use constant LBase  => 0x1100;
-use constant LFinal => 0x1112;
-use constant LCount =>     19; # scalar @JamoL
-use constant VBase  => 0x1161;
-use constant VFinal => 0x1175;
-use constant VCount =>     21; # scalar @JamoV
-use constant TBase  => 0x11A7;
-use constant TFinal => 0x11C2;
-use constant TCount =>     28; # scalar @JamoT
+sub getCanonList {
+    my @src = @_;
+    my @dec = map {
+	(SBase <= $_ && $_ <= SFinal) ? decomposeHangul($_)
+	    : $Canon{$_} ? @{ $Canon{$_} } : $_
+		} @src;
+    return join(" ",@src) eq join(" ",@dec) ? @dec : getCanonList(@dec);
+    # condition @src == @dec is not ok.
+}
+
+sub getCompatList {
+    my @src = @_;
+    my @dec =  map {
+	(SBase <= $_ && $_ <= SFinal) ? decomposeHangul($_)
+	    : $Compat{$_} ? @{ $Compat{$_} } : $_
+		} @src;
+    return join(" ",@src) eq join(" ",@dec) ? @dec : getCompatList(@dec);
+    # condition @src == @dec is not ok.
+}
+
+# exhaustive decomposition
+foreach my $key (keys %Canon) {
+    $Canon{$key}  = [ getCanonList($key) ];
+}
+
+# exhaustive decomposition
+foreach my $key (keys %Compat) {
+    $Compat{$key} = [ getCompatList($key) ];
+}
+
+######
 
 sub getHangulComposite ($$) {
     if ((LBase <= $_[0] && $_[0] <= LFinal)
@@ -183,33 +229,11 @@ sub decomposeHangul {
 
 ##########
 
-sub getCanonList {
-    my @src = @_;
-    my @dec = map $Canon{$_} ? @{ $Canon{$_} } : $_, @src;
-    join(" ",@src) eq join(" ",@dec) ? @dec : getCanonList(@dec);
-    # condition @src == @dec is not ok.
-}
-
-sub getCompatList {
-    my @src = @_;
-    my @dec = map $Compat{$_} ? @{ $Compat{$_} } : $_, @src;
-    join(" ",@src) eq join(" ",@dec) ? @dec : getCompatList(@dec);
-    # condition @src == @dec is not ok.
-}
-
-foreach my $key (keys %Canon) { # exhaustive decomposition
-    $Canon{$key}  = [ getCanonList($key) ];
-}
-
-foreach my $key (keys %Compat) { # exhaustive decomposition
-    $Compat{$key} = [ getCompatList($key) ];
-}
-
 sub getCombinClass ($) { $Combin{$_[0]} || 0 }
 
-sub getCanon ($) { 
+sub getCanon ($) {
     return exists $Canon{$_[0]}
-	? pack('U*', @{ $Canon{$_[0]} })
+	? _pack_U(@{ $Canon{$_[0]} })
 	: (SBase <= $_[0] && $_[0] <= SFinal)
 	    ? scalar decomposeHangul($_[0])
 	    : undef;
@@ -217,7 +241,7 @@ sub getCanon ($) {
 
 sub getCompat ($) {
     return exists $Compat{$_[0]}
-	? pack('U*', @{ $Compat{$_[0]} })
+	? _pack_U(@{ $Compat{$_[0]} })
 	: (SBase <= $_[0] && $_[0] <= SFinal)
 	    ? scalar decomposeHangul($_[0])
 	    : undef;
@@ -257,10 +281,10 @@ sub isNFKC_NO   ($) {
 sub decompose ($;$)
 {
     my $hash = $_[1] ? \%Compat : \%Canon;
-    return pack 'U*', map {
+    return _pack_U map {
 	$hash->{ $_ } ? @{ $hash->{ $_ } } :
 	    (SBase <= $_ && $_ <= SFinal) ? decomposeHangul($_) : $_
-    } unpack('U*', $_[0]);
+    } _unpack_U($_[0]);
 }
 
 ##
@@ -268,7 +292,7 @@ sub decompose ($;$)
 ##
 sub reorder ($)
 {
-    my @src = unpack('U*', $_[0]);
+    my @src = _unpack_U($_[0]);
 
     for (my $i=0; $i < @src;) {
 	$i++, next if ! $Combin{ $src[$i] };
@@ -282,7 +306,7 @@ sub reorder ($)
 
 	@src[ $ini .. $i - 1 ] = @src[ @tmp ];
     }
-    return pack('U*', @src);
+    return _pack_U(@src);
 }
 
 
@@ -297,7 +321,7 @@ sub reorder ($)
 ##
 sub compose ($)
 {
-    my @src = unpack('U*', $_[0]);
+    my @src = _unpack_U($_[0]);
 
     for (my $s = 0; $s+1 < @src; $s++) {
 	next unless defined $src[$s] && ! $Combin{ $src[$s] };
@@ -324,7 +348,7 @@ sub compose ($)
 	    if ($blocked) { $blocked = 0 } else { -- $uncomposed_cc }
 	}
     }
-    return pack 'U*', grep defined(), @src;
+    return _pack_U(grep defined(), @src);
 }
 
 ##
@@ -359,7 +383,7 @@ sub checkNFD ($)
 {
     my $preCC = 0;
     my $curCC;
-    for my $uv (unpack('U*', $_[0])) {
+    for my $uv (_unpack_U($_[0])) {
 	$curCC = $Combin{ $uv } || 0;
 	return '' if $preCC > $curCC && $curCC != 0;
 	return '' if exists $Canon{$uv} || (SBase <= $uv && $uv <= SFinal);
@@ -372,7 +396,7 @@ sub checkNFKD ($)
 {
     my $preCC = 0;
     my $curCC;
-    for my $uv (unpack('U*', $_[0])) {
+    for my $uv (_unpack_U($_[0])) {
 	$curCC = $Combin{ $uv } || 0;
 	return '' if $preCC > $curCC && $curCC != 0;
 	return '' if exists $Compat{$uv} || (SBase <= $uv && $uv <= SFinal);
@@ -385,7 +409,7 @@ sub checkNFC ($)
 {
     my $preCC = 0;
     my($curCC, $isMAYBE);
-    for my $uv (unpack('U*', $_[0])) {
+    for my $uv (_unpack_U($_[0])) {
 	$curCC = $Combin{ $uv } || 0;
 	return '' if $preCC > $curCC && $curCC != 0;
 
@@ -403,7 +427,7 @@ sub checkNFKC ($)
 {
     my $preCC = 0;
     my($curCC, $isMAYBE);
-    for my $uv (unpack('U*', $_[0])) {
+    for my $uv (_unpack_U($_[0])) {
 	$curCC = $Combin{ $uv } || 0;
 	return '' if $preCC > $curCC && $curCC != 0;
 
@@ -637,7 +661,7 @@ is a composition exclusion.
 Returns a boolean whether the character of the specified codepoint is
 a singleton.
 
-=item C<$is_non_startar_decomposition = isNonStDecomp($codepoint)>
+=item C<$is_non_starter_decomposition = isNonStDecomp($codepoint)>
 
 Returns a boolean whether the canonical decomposition
 of the character of the specified codepoint
@@ -664,10 +688,10 @@ SADAHIRO Tomoyuki, E<lt>SADAHIRO@cpan.orgE<gt>
 
   http://homepage1.nifty.com/nomenclator/perl/
 
-  Copyright(C) 2001-2002, SADAHIRO Tomoyuki. Japan. All rights reserved.
+  Copyright(C) 2001-2003, SADAHIRO Tomoyuki. Japan. All rights reserved.
 
-  This program is free software; you can redistribute it and/or 
-  modify it under the same terms as Perl itself.
+  This module is free software; you can redistribute it
+  and/or modify it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
