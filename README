@@ -1,4 +1,4 @@
-Unicode/Normalize version 0.12
+Unicode/Normalize version 0.13
 ===================================
 
 Unicode::Normalize - normalized forms of Unicode text
@@ -40,6 +40,15 @@ type the following:
    make test
    make install
 
+If you decide to install the NoXS version after trying to build the XS,
+type the following:
+
+   make clean
+   perl Makefile.PL noxs
+   make
+   make test
+   make install
+
 DEPENDENCIES
 
 This module requires these other modules and libraries:
@@ -52,8 +61,11 @@ unicore/CombiningClass.pl or unicode/CombiningClass.pl
 unicore/Decomposition.pl  or unicode/Decomposition.pl
 unicore/CompExcl.txt      or unicode/CompExcl.txt
 
-and for the Non-XS version, in addition to the above,
-Lingua::KO::Hangul::Util 0.06
+and for the NoXS version, in addition to the above,
+
+  Lingua::KO::Hangul::Util 0.06
+
+is required.
 
 COPYRIGHT AND LICENCE
 
