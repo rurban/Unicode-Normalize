@@ -10,7 +10,9 @@ Normalize.pm	.pm for XSUB
 Normalize.xs	.xs for XSUB
 Normalize.pmN	.pm for No-XSUB
 t/fcdc.t
+t/form.t
 t/func.t
 t/norm.t
+t/proto.t
 t/split.t
 t/test.t

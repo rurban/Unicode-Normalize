@@ -19,7 +19,7 @@ BEGIN {
 use Test;
 use strict;
 use warnings;
-BEGIN { plan tests => 32 };
+BEGIN { plan tests => 35 };
 use Unicode::Normalize qw(:all);
 ok(1); # If we made it this far, we're ok.
 
@@ -38,6 +38,9 @@ ok(answer(checkFCD(_pack_U(0x41, 0x30A))), 'YES'); # A+ring
 ok(answer(checkFCD(_pack_U(0x41, 0x327, 0x30A))), 'YES'); # A+cedilla+ring
 ok(answer(checkFCD(_pack_U(0x41, 0x30A, 0x327))), 'NO');  # A+ring+cedilla
 ok(answer(checkFCD(_pack_U(0xC5, 0x0327))), 'NO'); # A-ring+cedilla
+ok(answer(checkNFC(_pack_U(0xC5, 0x0327))), 'MAYBE'); # NFC: A-ring+cedilla
+ok(answer(check("FCD", _pack_U(0xC5, 0x0327))), 'NO');
+ok(answer(check("NFC", _pack_U(0xC5, 0x0327))), 'MAYBE');
 ok(answer(checkFCD("\x{AC01}\x{1100}\x{1161}")), 'YES'); # hangul
 ok(answer(checkFCD("\x{212B}\x{F900}")), 'YES'); # compat
 

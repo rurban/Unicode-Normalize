@@ -11,7 +11,7 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.24';
+our $VERSION = '0.25';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -241,7 +241,7 @@ you can get its NFC/NFKC string, saying
 
 =head2 Quick Check
 
-(see Annex 8, UAX #15, and F<DerivedNormalizationProps.txt>)
+(see Annex 8, UAX #15; and F<DerivedNormalizationProps.txt>)
 
 The following functions check whether the string is in that normalization form.
 
@@ -276,6 +276,9 @@ returns C<YES> (C<1>) or C<NO> (C<empty string>).
 =item C<$result = checkFCC($string)>
 
 returns C<YES> (C<1>), C<NO> (C<empty string>), or C<MAYBE> (C<undef>).
+
+If a string is not in C<FCD>, it must not be in <FCC>.
+So C<checkFCC($not_FCD_string)> should return C<NO>.
 
 =item C<$result = check($form_name, $string)>
 

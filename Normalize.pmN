@@ -12,7 +12,7 @@ use warnings;
 use Carp;
 use File::Spec;
 
-our $VERSION = '0.24';
+our $VERSION = '0.25';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -678,12 +678,12 @@ Note: FCD is unique, as well as four normalization forms (NF*).
 
 As C<$form_name>, one of the following names must be given.
 
-  'C'  or 'NFC'  for Normalization Form C
-  'D'  or 'NFD'  for Normalization Form D
-  'KC' or 'NFKC' for Normalization Form KC
-  'KD' or 'NFKD' for Normalization Form KD
+  'C'  or 'NFC'  for Normalization Form C  (UAX #15)
+  'D'  or 'NFD'  for Normalization Form D  (UAX #15)
+  'KC' or 'NFKC' for Normalization Form KC (UAX #15)
+  'KD' or 'NFKD' for Normalization Form KD (UAX #15)
 
-  'FCD'          for "Fast C or D" form  (UTN #5)
+  'FCD'          for "Fast C or D" Form  (UTN #5)
   'FCC'          for "Fast C Contiguous" (UTN #5)
 
 =back
@@ -733,7 +733,7 @@ you can get its NFC/NFKC string, saying
 
 =head2 Quick Check
 
-(see Annex 8, UAX #15; F<DerivedNormalizationProps.txt>)
+(see Annex 8, UAX #15; and F<DerivedNormalizationProps.txt>)
 
 The following functions check whether the string is in that normalization form.
 
@@ -768,6 +768,9 @@ returns C<YES> (C<1>) or C<NO> (C<empty string>).
 =item C<$result = checkFCC($string)>
 
 returns C<YES> (C<1>), C<NO> (C<empty string>), or C<MAYBE> (C<undef>).
+
+If a string is not in C<FCD>, it must not be in <FCC>.
+So C<checkFCC($not_FCD_string)> should return C<NO>.
 
 =item C<$result = check($form_name, $string)>
 
