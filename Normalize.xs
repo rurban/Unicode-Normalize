@@ -254,13 +254,11 @@ reorder(arg)
 	    croak(ErrRetlenIsZero);
 	p += retlen;
 
-	
-
 	curCC = getCombinClass(uv);
-	if (! (curCC && p < e))
-	    continue;
-	else
+	if (curCC && p < e)
 	    cc_in = p - retlen;
+	else
+	    continue;
 
 	cc_pos = 0;
 	stk_cc[cc_pos].cc  = curCC;

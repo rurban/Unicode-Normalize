@@ -1,4 +1,4 @@
-Unicode/Normalize version 0.25
+Unicode/Normalize version 0.26
 ===================================
 
 Unicode::Normalize - Unicode Normalization Forms
@@ -85,9 +85,7 @@ CAVEAT
 
 COPYRIGHT AND LICENCE
 
-  SADAHIRO Tomoyuki
-
-  SADAHIRO@cpan.org
+  SADAHIRO Tomoyuki <SADAHIRO@cpan.org>
 
   http://homepage1.nifty.com/nomenclator/perl/
 

@@ -1,5 +1,8 @@
 Revision history for Perl extension Unicode::Normalize.
 
+0.26  Sat Nov 15 21:52:30 2003
+	- doc fix: s/FCD(?= is unique)/FCC/;
+
 0.25  Mon Oct  6 22:26:03 2003
 	- added form.t and proto.t.
 
