@@ -71,7 +71,7 @@ typedef struct {
     STRLEN pos; /* position */
 } UNF_cc;
 
-int compare_cc (const void *a, const void *b)
+static int compare_cc (const void *a, const void *b)
 {
     int ret_cc;
     ret_cc = ((UNF_cc*) a)->cc - ((UNF_cc*) b)->cc;
@@ -82,7 +82,7 @@ int compare_cc (const void *a, const void *b)
 	 - ( ((UNF_cc*) a)->pos < ((UNF_cc*) b)->pos );
 }
 
-U8* dec_canonical (UV uv)
+static U8* dec_canonical (UV uv)
 {
     U8 ***plane, **row;
     if (OVER_UTF_MAX(uv))
@@ -94,7 +94,7 @@ U8* dec_canonical (UV uv)
     return row ? row[uv & 0xff] : NULL;
 }
 
-U8* dec_compat (UV uv)
+static U8* dec_compat (UV uv)
 {
     U8 ***plane, **row;
     if (OVER_UTF_MAX(uv))
@@ -106,7 +106,7 @@ U8* dec_compat (UV uv)
     return row ? row[uv & 0xff] : NULL;
 }
 
-UV composite_uv (UV uv, UV uv2)
+static UV composite_uv (UV uv, UV uv2)
 {
     UNF_complist ***plane, **row, *cell, *i;
 
@@ -138,7 +138,7 @@ UV composite_uv (UV uv, UV uv2)
     return 0;
 }
 
-U8 getCombinClass (UV uv)
+static U8 getCombinClass (UV uv)
 {
     U8 **plane, *row;
     if (OVER_UTF_MAX(uv))
@@ -150,7 +150,7 @@ U8 getCombinClass (UV uv)
     return row ? row[uv & 0xff] : 0;
 }
 
-void sv_cat_decompHangul (SV* sv, UV uv)
+static void sv_cat_decompHangul (SV* sv, UV uv)
 {
     UV sindex, lindex, vindex, tindex;
     U8 *t, tmp[3 * UTF8_MAXLEN + 1];
@@ -169,7 +169,17 @@ void sv_cat_decompHangul (SV* sv, UV uv)
     if (tindex)
 	t = uvuni_to_utf8(t, (tindex + Hangul_TBase));
     *t = '\0';
-    sv_catpvn(sv, (char *)tmp, strlen((char *)tmp));
+    sv_catpvn(sv, (char *)tmp, t - tmp);
+}
+
+static void sv_cat_uvuni (SV* sv, UV uv)
+{
+    U8 *t, tmp[UTF8_MAXLEN + 1];
+
+    t = tmp;
+    t = uvuni_to_utf8(t, uv);
+    *t = '\0';
+    sv_catpvn(sv, (char *)tmp, t - tmp);
 }
 
 MODULE = Unicode::Normalize	PACKAGE = Unicode::Normalize
@@ -212,7 +222,7 @@ decompose(arg, compat = &PL_sv_no)
 	    if (r)
 		sv_catpv(dst, (char *)r);
 	    else
-		sv_catpvn(dst, (char *)p, retlen);
+		sv_cat_uvuni(dst, uv);
 	}
     }
     RETVAL = dst;
@@ -229,8 +239,10 @@ reorder(arg)
     SV *src, *dst;
     STRLEN srclen, dstlen, retlen, stk_cc_max;
     U8 *s, *e, *p, *d, curCC;
-    UV uv;
+    UV uv, uvlast;
     UNF_cc * stk_cc;
+    STRLEN i, cc_pos;
+    bool valid_uvlast;
   CODE:
     if (SvUTF8(arg)) {
 	src = arg;
@@ -240,38 +252,34 @@ reorder(arg)
     }
 
     s = (U8*)SvPV(src, srclen);
-
+    e = s + srclen;
     dstlen = srclen + 1;
     dst = newSV(dstlen);
-    sv_setpvn(dst,(const char*)s,srclen);
+    (void)SvPOK_only(dst);
     SvUTF8_on(dst);
+    d = (U8*)SvPVX(dst);
 
     stk_cc_max = 10; /* enough as an initial value? */
     New(0, stk_cc, stk_cc_max, UNF_cc);
 
-    d = (U8*)SvPV(dst,dstlen);
-    e = d + dstlen;
-
-    for (p = d; p < e;) {
-	U8 *cc_in;
-	STRLEN cc_len, cc_iter, cc_pos;
-
+    for (p = s; p < e;) {
 	uv = utf8n_to_uvuni(p, e - p, &retlen, AllowAnyUTF);
 	if (!retlen)
 	    croak(ErrRetlenIsZero);
 	p += retlen;
 
 	curCC = getCombinClass(uv);
-	if (curCC && p < e)
-	    cc_in = p - retlen;
-	else
+	if (curCC == 0) {
+	    d = uvuni_to_utf8(d, uv);
 	    continue;
+	}
 
 	cc_pos = 0;
 	stk_cc[cc_pos].cc  = curCC;
 	stk_cc[cc_pos].uv  = uv;
 	stk_cc[cc_pos].pos = cc_pos;
 
+	valid_uvlast = FALSE;
 	while (p < e) {
 	    uv = utf8n_to_uvuni(p, e - p, &retlen, AllowAnyUTF);
 	    if (!retlen)
@@ -279,8 +287,11 @@ reorder(arg)
 	    p += retlen;
 
 	    curCC = getCombinClass(uv);
-	    if (!curCC)
+	    if (curCC == 0) {
+		uvlast = uv;
+		valid_uvlast = TRUE;
 		break;
+	    }
 
 	    cc_pos++;
 	    if (stk_cc_max <= cc_pos) { /* extend if need */
@@ -292,18 +303,21 @@ reorder(arg)
 	    stk_cc[cc_pos].pos = cc_pos;
 	}
 
-	 /* only one c.c. in cc_len from cc_in, no need of reordering */
-	if (!cc_pos)
-	    continue;
+	/* reordered if there are two c.c.'s */
+	if (cc_pos) {
+	    qsort((void*)stk_cc, cc_pos + 1, sizeof(UNF_cc), compare_cc);
+	}
 
-	qsort((void*)stk_cc, cc_pos + 1, sizeof(UNF_cc), compare_cc);
-
-	cc_len = p - cc_in;
-	p = cc_in;
-	for (cc_iter = 0; cc_iter <= cc_pos; cc_iter++) {
-	    p = uvuni_to_utf8(p, stk_cc[cc_iter].uv);
+	for (i = 0; i <= cc_pos; i++) {
+	    d = uvuni_to_utf8(d, stk_cc[i].uv);
+	}
+	if (valid_uvlast)
+	{
+	    d = uvuni_to_utf8(d, uvlast);
 	}
     }
+    *d = '\0';
+    SvCUR_set(dst, d - (U8*)SvPVX(dst));
     Safefree(stk_cc);
     RETVAL = dst;
   OUTPUT:

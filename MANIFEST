@@ -12,7 +12,10 @@ Normalize.pmN	.pm for No-XSUB
 t/fcdc.t
 t/form.t
 t/func.t
+t/illegal.t
 t/norm.t
+t/null.t
 t/proto.t
+t/short.t
 t/split.t
 t/test.t

@@ -13,7 +13,7 @@ use Carp;
 
 no warnings 'utf8';
 
-our $VERSION = '0.27';
+our $VERSION = '0.28';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
