@@ -20,7 +20,14 @@
 #define utf8n_to_uvuni  utf8_to_uv
 #endif /* utf8n_to_uvuni */
 
-/* if utf8n_to_uvuni() sets retlen to 0 when flags = 0 */
+/* UTF8_ALLOW_BOM is used before Perl 5.8.0 */
+#ifdef UTF8_ALLOW_BOM
+#define AllowAnyUTF (UTF8_ALLOW_SURROGATE|UTF8_ALLOW_BOM|UTF8_ALLOW_FFFF)
+#else 
+#define AllowAnyUTF (UTF8_ALLOW_SURROGATE|UTF8_ALLOW_FFFF)
+#endif
+
+/* if utf8n_to_uvuni() sets retlen to 0 (?) */
 #define ErrRetlenIsZero "panic (Unicode::Normalize): zero-length character"
 
 /* utf8_hop() hops back before start. Maybe broken UTF-8 */
@@ -194,7 +201,7 @@ decompose(arg, compat = &PL_sv_no)
     s = (U8*)SvPV(src,srclen);
     e = s + srclen;
     for (p = s; p < e; p += retlen) {
-	uv = utf8n_to_uvuni(p, e - p, &retlen, 0);
+	uv = utf8n_to_uvuni(p, e - p, &retlen, AllowAnyUTF);
 	if (!retlen)
 	    croak(ErrRetlenIsZero);
 
@@ -249,7 +256,7 @@ reorder(arg)
 	U8 *cc_in;
 	STRLEN cc_len, cc_iter, cc_pos;
 
-	uv = utf8n_to_uvuni(p, e - p, &retlen, 0);
+	uv = utf8n_to_uvuni(p, e - p, &retlen, AllowAnyUTF);
 	if (!retlen)
 	    croak(ErrRetlenIsZero);
 	p += retlen;
@@ -266,7 +273,7 @@ reorder(arg)
 	stk_cc[cc_pos].pos = cc_pos;
 
 	while (p < e) {
-	    uv = utf8n_to_uvuni(p, e - p, &retlen, 0);
+	    uv = utf8n_to_uvuni(p, e - p, &retlen, AllowAnyUTF);
 	    if (!retlen)
 		croak(ErrRetlenIsZero);
 	    p += retlen;
@@ -339,7 +346,7 @@ compose(arg)
 
     for (p = s; p < e;) {
 	if (beginning) {
-	    uvS = utf8n_to_uvuni(p, e - p, &retlen, 0);
+	    uvS = utf8n_to_uvuni(p, e - p, &retlen, AllowAnyUTF);
 	    if (!retlen)
 		croak(ErrRetlenIsZero);
 	    p += retlen;
@@ -357,7 +364,7 @@ compose(arg)
 
     /* to the next Starter */
 	while (p < e) {
-	    uv = utf8n_to_uvuni(p, e - p, &retlen, 0);
+	    uv = utf8n_to_uvuni(p, e - p, &retlen, AllowAnyUTF);
 	    if (!retlen)
 		croak(ErrRetlenIsZero);
 	    p += retlen;
@@ -431,7 +438,7 @@ checkNFD(arg)
 
     preCC = 0;
     for (p = s; p < e; p += retlen) {
-	uv = utf8n_to_uvuni(p, e - p, &retlen, 0);
+	uv = utf8n_to_uvuni(p, e - p, &retlen, AllowAnyUTF);
 	if (!retlen)
 	    croak(ErrRetlenIsZero);
 
@@ -472,7 +479,7 @@ checkNFC(arg)
     preCC = 0;
     isMAYBE = FALSE;
     for (p = s; p < e; p += retlen) {
-	uv = utf8n_to_uvuni(p, e - p, &retlen, 0);
+	uv = utf8n_to_uvuni(p, e - p, &retlen, AllowAnyUTF);
 	if (!retlen)
 	    croak(ErrRetlenIsZero);
 
@@ -533,7 +540,7 @@ checkFCD(arg)
     preCC = 0;
     isMAYBE = FALSE;
     for (p = s; p < e; p += retlen) {
-	uv = utf8n_to_uvuni(p, e - p, &retlen, 0);
+	uv = utf8n_to_uvuni(p, e - p, &retlen, AllowAnyUTF);
 	if (!retlen)
 	    croak(ErrRetlenIsZero);
 
@@ -541,7 +548,7 @@ checkFCD(arg)
 
 	if (sCan) {
 	    canlen = (STRLEN)strlen((char *) sCan);
-	    uvLead = utf8n_to_uvuni(sCan, canlen, &canret, 0);
+	    uvLead = utf8n_to_uvuni(sCan, canlen, &canret, AllowAnyUTF);
 	}
 	else {
 	    uvLead = uv;
@@ -564,7 +571,7 @@ checkFCD(arg)
 	    pCan = utf8_hop(eCan, -1);
 	    if (pCan < sCan)
 		croak(ErrHopBeforeStart);
-	    uvTrail = utf8n_to_uvuni(pCan, eCan - pCan, &canret, 0);
+	    uvTrail = utf8n_to_uvuni(pCan, eCan - pCan, &canret, AllowAnyUTF);
 	    preCC = getCombinClass(uvTrail);
 	}
 	else {
@@ -710,7 +717,7 @@ splitOnLastStarter(arg)
 	p = utf8_hop(p, -1);
 	if (p < s)
 	    croak(ErrHopBeforeStart);
-	uv = utf8n_to_uvuni(p, e - p, &retlen, 0);
+	uv = utf8n_to_uvuni(p, e - p, &retlen, AllowAnyUTF);
 	if (getCombinClass(uv) == 0) /* Last Starter found */
 	    break;
     }

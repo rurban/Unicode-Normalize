@@ -1,5 +1,12 @@
 Revision history for Perl extension Unicode::Normalize.
 
+0.27  Sun Nov 16 13:16:21 2003
+	- Illegal code points (surrogate and noncharacter) will be allowed
+	  (keep your code with <no warnings 'utf8';>);
+	  but porting is not successful in the case of ((Pure Perl) and
+	  (Perl 5.7.3 or before)).
+	- added illegal.t.
+
 0.26  Sat Nov 15 21:52:30 2003
 	- doc fix: s/FCD(?= is unique)/FCC/;
 

@@ -1,11 +1,11 @@
 README
 Changes
 Makefile.PL
-MANIFEST	MANIFEST for XSUB
-MANIFEST.N	MANIFEST for No-XSUB
 disableXS
 enableXS
 mkheader
+MANIFEST	MANIFEST for XSUB
+MANIFEST.N	MANIFEST for No-XSUB
 Normalize.pm	.pm for XSUB
 Normalize.xs	.xs for XSUB
 Normalize.pmN	.pm for No-XSUB

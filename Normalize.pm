@@ -11,7 +11,9 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.26';
+no warnings 'utf8';
+
+our $VERSION = '0.27';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;

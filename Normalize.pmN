@@ -10,9 +10,12 @@ use 5.006;
 use strict;
 use warnings;
 use Carp;
+
+no warnings 'utf8';
+
 use File::Spec;
 
-our $VERSION = '0.26';
+our $VERSION = '0.27';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
