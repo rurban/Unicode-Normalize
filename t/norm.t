@@ -4,11 +4,16 @@
 #########################
 
 use Test;
-BEGIN { plan tests => 13 };
+use strict;
+use warnings;
+BEGIN { plan tests => 15 };
 use Unicode::Normalize qw(normalize);
 ok(1); # If we made it this far, we're ok.
 
 #########################
+
+ok(normalize('C', ""), "");
+ok(normalize('D', ""), "");
 
 sub hexNFC {
   join " ", map sprintf("%04X", $_),

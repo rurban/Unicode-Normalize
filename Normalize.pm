@@ -6,7 +6,7 @@ use warnings;
 use Carp;
 use Lingua::KO::Hangul::Util;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -141,7 +141,8 @@ sub _decompose
 {
   my $str  = $_[0];
   my $hash = $_[1] ? \%Compat : \%Canon;
-  my(@ret,$retstr);
+  my @ret;
+  my $retstr="";
   foreach my $u (unpack 'U*', $str){
     push @ret,
       $hash->{ $u }  ? @{ $hash->{ $u } } :
@@ -219,7 +220,7 @@ sub _getCombin { wantarray ? %Combin : \%Combin }
 sub _getCanon  { wantarray ? %Canon  : \%Canon  }
 sub _getCompat { wantarray ? %Compat : \%Compat }
 sub _getCompos { wantarray ? %Compos : \%Compos }
-
+sub _getExclus { wantarray ? %Exclus : \%Exclus }
 1;
 __END__
 
@@ -251,21 +252,21 @@ Unicode::Normalize - normalized forms of Unicode text
 
 =item C<$string_NFD = NFD($raw_string)>
 
-returns the normalization Form D (formed by canonical decomposition).
+returns the Normalization Form D (formed by canonical decomposition).
 
 
 =item C<$string_NFC = NFC($raw_string)>
 
-returns the normalization Form C (formed by canonical decomposition,
+returns the Normalization Form C (formed by canonical decomposition
 followed by canonical composition).
 
 =item C<$string_NFKD = NFKD($raw_string)>
 
-returns the normalization Form KD (formed by compatibility decomposition).
+returns the Normalization Form KD (formed by compatibility decomposition).
 
 =item C<$string_NFKC = NFKC($raw_string)>
 
-returns the normalization Form KC (formed by compatibility decomposition,
+returns the Normalization Form KC (formed by compatibility decomposition
 followed by B<canonical> composition).
 
 =item C<$normalized_string = normalize($form_name, $raw_string)>

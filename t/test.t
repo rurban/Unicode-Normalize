@@ -4,11 +4,16 @@
 #########################
 
 use Test;
-BEGIN { plan tests => 13 };
+use strict;
+use warnings;
+BEGIN { plan tests => 15 };
 use Unicode::Normalize;
 ok(1); # If we made it this far, we're ok.
 
 #########################
+
+ok(NFC(""), "");
+ok(NFD(""), "");
 
 sub hexNFC {
   join " ", map sprintf("%04X", $_),
