@@ -1,8 +1,8 @@
 package Unicode::Normalize;
 
 BEGIN {
-    if (ord("A") == 193) {
-	die "Unicode::Normalize not ported to EBCDIC\n";
+    unless ("A" eq pack('U', 0x41) || "A" eq pack('U', ord("A"))) {
+	die "Unicode::Normalize cannot stringify a Unicode code point\n";
     }
 }
 
@@ -12,9 +12,7 @@ use warnings;
 use Carp;
 use File::Spec;
 
-our $IsEBCDIC = ord("A") != 0x41;
-
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -92,17 +90,8 @@ our %Compos;	# $1st,$2nd  => $codepoint : composite
 ##
 sub _getHexArray { map hex, $_[0] =~ /([0-9A-Fa-f]+)/g }
 
-sub _pack_U {
-    return $IsEBCDIC
-	? pack('U*', map utf8::unicode_to_native($_), @_)
-	: pack('U*', @_);
-}
 
-sub _unpack_U {
-    return $IsEBCDIC
-	? map(utf8::native_to_unicode($_), unpack 'U*', shift)
-	: unpack('U*', shift);
-}
+######
 
 while ($Combin =~ /(.+)/g) {
     my @tab = split /\t/, $1;
@@ -200,6 +189,31 @@ foreach my $key (keys %Compat) {
 
 ######
 
+use constant UNICODE_FOR_PACK => ("A" eq pack('U', 0x41));
+use constant NATIVE_FOR_PACK  => ("A" eq pack('U', ord("A")));
+
+use constant UNICODE_FOR_UNPACK => (0x41 == unpack('U', "A"));
+use constant NATIVE_FOR_UNPACK  => (ord("A") == unpack('U', "A"));
+
+sub pack_U {
+    return UNICODE_FOR_PACK
+	? pack('U*', @_)
+	: NATIVE_FOR_PACK
+	    ? pack('U*', map utf8::unicode_to_native($_), @_)
+	    : die "$PACKAGE, a Unicode code point cannot be stringified.\n";
+}
+
+sub unpack_U {
+    return UNICODE_FOR_UNPACK
+	? unpack('U*', shift)
+	: NATIVE_FOR_UNPACK
+	    ? map(utf8::native_to_unicode($_), unpack 'U*', shift)
+	    : die "$PACKAGE, a code point returned from unpack U " .
+		"cannot be converted into Unicode.\n";
+}
+
+######
+
 sub getHangulComposite ($$) {
     if ((LBase <= $_[0] && $_[0] <= LFinal)
      && (VBase <= $_[1] && $_[1] <= VFinal)) {
@@ -233,7 +247,7 @@ sub getCombinClass ($) { $Combin{$_[0]} || 0 }
 
 sub getCanon ($) {
     return exists $Canon{$_[0]}
-	? _pack_U(@{ $Canon{$_[0]} })
+	? pack_U(@{ $Canon{$_[0]} })
 	: (SBase <= $_[0] && $_[0] <= SFinal)
 	    ? scalar decomposeHangul($_[0])
 	    : undef;
@@ -241,7 +255,7 @@ sub getCanon ($) {
 
 sub getCompat ($) {
     return exists $Compat{$_[0]}
-	? _pack_U(@{ $Compat{$_[0]} })
+	? pack_U(@{ $Compat{$_[0]} })
 	: (SBase <= $_[0] && $_[0] <= SFinal)
 	    ? scalar decomposeHangul($_[0])
 	    : undef;
@@ -281,10 +295,10 @@ sub isNFKC_NO   ($) {
 sub decompose ($;$)
 {
     my $hash = $_[1] ? \%Compat : \%Canon;
-    return _pack_U map {
+    return pack_U map {
 	$hash->{ $_ } ? @{ $hash->{ $_ } } :
 	    (SBase <= $_ && $_ <= SFinal) ? decomposeHangul($_) : $_
-    } _unpack_U($_[0]);
+    } unpack_U($_[0]);
 }
 
 ##
@@ -292,7 +306,7 @@ sub decompose ($;$)
 ##
 sub reorder ($)
 {
-    my @src = _unpack_U($_[0]);
+    my @src = unpack_U($_[0]);
 
     for (my $i=0; $i < @src;) {
 	$i++, next if ! $Combin{ $src[$i] };
@@ -306,7 +320,7 @@ sub reorder ($)
 
 	@src[ $ini .. $i - 1 ] = @src[ @tmp ];
     }
-    return _pack_U(@src);
+    return pack_U(@src);
 }
 
 
@@ -321,7 +335,7 @@ sub reorder ($)
 ##
 sub compose ($)
 {
-    my @src = _unpack_U($_[0]);
+    my @src = unpack_U($_[0]);
 
     for (my $s = 0; $s+1 < @src; $s++) {
 	next unless defined $src[$s] && ! $Combin{ $src[$s] };
@@ -348,7 +362,7 @@ sub compose ($)
 	    if ($blocked) { $blocked = 0 } else { -- $uncomposed_cc }
 	}
     }
-    return _pack_U(grep defined(), @src);
+    return pack_U(grep defined(), @src);
 }
 
 ##
@@ -383,7 +397,7 @@ sub checkNFD ($)
 {
     my $preCC = 0;
     my $curCC;
-    for my $uv (_unpack_U($_[0])) {
+    for my $uv (unpack_U($_[0])) {
 	$curCC = $Combin{ $uv } || 0;
 	return '' if $preCC > $curCC && $curCC != 0;
 	return '' if exists $Canon{$uv} || (SBase <= $uv && $uv <= SFinal);
@@ -396,7 +410,7 @@ sub checkNFKD ($)
 {
     my $preCC = 0;
     my $curCC;
-    for my $uv (_unpack_U($_[0])) {
+    for my $uv (unpack_U($_[0])) {
 	$curCC = $Combin{ $uv } || 0;
 	return '' if $preCC > $curCC && $curCC != 0;
 	return '' if exists $Compat{$uv} || (SBase <= $uv && $uv <= SFinal);
@@ -409,7 +423,7 @@ sub checkNFC ($)
 {
     my $preCC = 0;
     my($curCC, $isMAYBE);
-    for my $uv (_unpack_U($_[0])) {
+    for my $uv (unpack_U($_[0])) {
 	$curCC = $Combin{ $uv } || 0;
 	return '' if $preCC > $curCC && $curCC != 0;
 
@@ -427,7 +441,7 @@ sub checkNFKC ($)
 {
     my $preCC = 0;
     my($curCC, $isMAYBE);
-    for my $uv (_unpack_U($_[0])) {
+    for my $uv (unpack_U($_[0])) {
 	$curCC = $Combin{ $uv } || 0;
 	return '' if $preCC > $curCC && $curCC != 0;
 
@@ -522,7 +536,7 @@ As C<$form_name>, one of the following names must be given.
 
 =item C<$decomposed_string = decompose($string, $useCompatMapping)>
 
-Decompose the specified string and returns the result.
+Decomposes the specified string and returns the result.
 
 If the second parameter (a boolean) is omitted or false, decomposes it
 using the Canonical Decomposition Mapping.
@@ -536,7 +550,7 @@ Reordering may be required.
 
 =item C<$reordered_string  = reorder($string)>
 
-Reorder the combining characters and the like in the canonical ordering
+Reorders the combining characters and the like in the canonical ordering
 and returns the result.
 
 E.g., when you have a list of NFD/NFKD strings,

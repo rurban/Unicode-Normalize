@@ -40,7 +40,7 @@ if(-f "Normalize.xs") {
 }
 
 WriteMakefile(
-    'INSTALLDIRS' => $] > 5.007 ? 'perl' : 'site', # XXXXXXXXXXXXX
+    'INSTALLDIRS' => $] > 5.007 ? 'perl' : 'site',
     'NAME'		=> 'Unicode::Normalize',
     'VERSION_FROM'	=> 'Normalize.pm', # finds $VERSION
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
