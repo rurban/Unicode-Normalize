@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -22,24 +22,24 @@ our %EXPORT_TAGS = ( all => [ @EXPORT, @EXPORT_OK ] );
 
 bootstrap Unicode::Normalize $VERSION;
 
-use constant CANON  => 0;
 use constant COMPAT => 1;
 
-sub NFD  ($) { reorder(decompose($_[0], CANON )) }
+sub NFD  ($) { reorder(decompose($_[0])) }
 sub NFKD ($) { reorder(decompose($_[0], COMPAT)) }
 
-sub NFC  ($) { compose(reorder(decompose($_[0], CANON ))) }
+sub NFC  ($) { compose(reorder(decompose($_[0]))) }
 sub NFKC ($) { compose(reorder(decompose($_[0], COMPAT))) }
 
 sub normalize($$)
 {
-  my $form = shift;
-  $form =~ s/NF//;
-  $form eq 'D'  ? NFD ($_[0]) :
-  $form eq 'C'  ? NFC ($_[0]) :
-  $form eq 'KD' ? NFKD($_[0]) :
-  $form eq 'KC' ? NFKC($_[0]) :
-    croak $PACKAGE."::normalize: invalid form name: $form";
+    my $form = shift;
+    $form =~ s/^NF//;
+    return
+	$form eq 'D'  ? NFD ($_[0]) :
+	$form eq 'C'  ? NFC ($_[0]) :
+	$form eq 'KD' ? NFKD($_[0]) :
+	$form eq 'KC' ? NFKC($_[0]) :
+      croak $PACKAGE."::normalize: invalid form name: $form";
 }
 
 1;
@@ -107,7 +107,7 @@ As C<$form_name>, one of the following names must be given.
 
 These functions are interface of character data used internally.
 If you want only to get unicode normalization forms, 
-you doesn't need call them by yourself.
+you don't need call them yourself.
 
 =over 4
 
@@ -152,7 +152,7 @@ SADAHIRO Tomoyuki, E<lt>SADAHIRO@cpan.orgE<gt>
 
   http://homepage1.nifty.com/nomenclator/perl/
 
-  Copyright(C) 2001, SADAHIRO Tomoyuki. Japan. All rights reserved.
+  Copyright(C) 2001-2002, SADAHIRO Tomoyuki. Japan. All rights reserved.
 
   This program is free software; you can redistribute it and/or 
   modify it under the same terms as Perl itself.

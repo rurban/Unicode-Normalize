@@ -6,7 +6,7 @@ use warnings;
 use Carp;
 use Lingua::KO::Hangul::Util 0.06;
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -36,6 +36,8 @@ our %Exclus; # $codepoint => 1            : composition exclusions
     my($f, $fh);
     foreach my $d (@INC) {
 	use File::Spec;
+	$f = File::Spec->catfile($d, "unicore", "CompositionExclusions.txt");
+	last if open($fh, $f);
 	$f = File::Spec->catfile($d, "unicore", "CompExcl.txt");
 	last if open($fh, $f);
 	$f = File::Spec->catfile($d, "unicode", "CompExcl.txt");
@@ -138,7 +140,8 @@ sub isExclusion ($) {
 ##
 ## string decompose(string, compat?)
 ##
-sub decompose {
+sub decompose ($;$)
+{
     my $hash = $_[1] ? \%Compat : \%Canon;
     return pack 'U*', map {
 	$hash->{ $_ } ? @{ $hash->{ $_ } } :
@@ -149,7 +152,8 @@ sub decompose {
 ##
 ## string reorder(string)
 ##
-sub reorder {
+sub reorder ($)
+{
     my @src = unpack('U*', $_[0]);
 
     for(my $i=0; $i < @src;){
@@ -177,7 +181,7 @@ sub reorder {
 ## S + S or (S + S) + S may be composed.
 ## NS + NS must not be composed.
 ##
-sub compose
+sub compose ($)
 {
     my @src = unpack('U*', $_[0]);
 
@@ -213,13 +217,12 @@ sub compose
 ## normalization forms
 ##
 
-use constant CANON  => 0;
 use constant COMPAT => 1;
 
-sub NFD  ($) { reorder(decompose($_[0], CANON )) }
+sub NFD  ($) { reorder(decompose($_[0])) }
 sub NFKD ($) { reorder(decompose($_[0], COMPAT)) }
 
-sub NFC  ($) { compose(reorder(decompose($_[0], CANON ))) }
+sub NFC  ($) { compose(reorder(decompose($_[0]))) }
 sub NFKC ($) { compose(reorder(decompose($_[0], COMPAT))) }
 
 sub normalize($$)
@@ -309,7 +312,7 @@ As C<$form_name>, one of the following names must be given.
 
 These functions are interface of character data used internally.
 If you want only to get unicode normalization forms, 
-you doesn't need call them by yourself.
+you don't need call them yourself.
 
 =over 4
 
@@ -354,7 +357,7 @@ SADAHIRO Tomoyuki, E<lt>SADAHIRO@cpan.orgE<gt>
 
   http://homepage1.nifty.com/nomenclator/perl/
 
-  Copyright(C) 2001, SADAHIRO Tomoyuki. Japan. All rights reserved.
+  Copyright(C) 2001-2002, SADAHIRO Tomoyuki. Japan. All rights reserved.
 
   This program is free software; you can redistribute it and/or 
   modify it under the same terms as Perl itself.
