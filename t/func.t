@@ -6,7 +6,7 @@
 use Test;
 use strict;
 use warnings;
-BEGIN { plan tests => 8 };
+BEGIN { plan tests => 6 };
 use Unicode::Normalize qw(:all);
 ok(1); # If we made it this far, we're ok.
 
@@ -70,34 +70,4 @@ print ! isExclusion( 0)
    && isExclusion(3907)
    && isExclusion(64334)
   ? "ok" : "not ok", " 6\n";
-
-my $ngNFC = 0;
-my $ngNFD = 0;
-foreach my $ary (
-  [ "\x{41}\x{0302}", "\x{0301}" ],
-  [ "\x{41}\x{0301}", "\x{0302}" ],
-  [ "\x{0315}\x{0302}", "\x{0301}\x{41}\x{0302}", "\x{0301}" ],
-  [ "\x{1100}", "\x{1161}\x{1100}", "\x{1173}\x{11AF}" ],
-  [ "\x{00E0}\x{05AE}", "\x{05C4}\x{0315}\x{0062}" ],
-  [ "\x{41}", "", "\x{61}\x00", "\x{42}" ],
-) {
-  my $strNFC = '';
-  my $strNFD = '';
-  my $bufNFC = '';
-  my $bufNFD = '';
-  foreach my $buf (@$ary){
-    $bufNFC .= $buf;
-    $bufNFD .= $buf;
-    $strNFC .= NFC_check($bufNFC);
-    $strNFD .= NFD_check($bufNFD);
-  }
-  $strNFC .= $bufNFC;
-  $strNFD .= $bufNFD;
-
-  $ngNFC ++ if $strNFC ne NFC join '', @$ary;
-  $ngNFD ++ if $strNFD ne NFD join '', @$ary;
-}
-
-print $ngNFC == 0 ? "ok" : "not ok", " 7\n";
-print $ngNFD == 0 ? "ok" : "not ok", " 8\n";
 

@@ -188,36 +188,31 @@ decompose(arg, compat)
 
 
 SV*
-reorder(arg, check = &PL_sv_no)
+reorder(arg)
     SV * arg
-    SV * check
-  PROTOTYPE: $;$
+  PROTOTYPE: $
   PREINIT:
     SV *src;
     STRLEN srclen, retlen, stk_cc_max;
-    U8 *s, *e, *p, curCC, *pos_last_S;
+    U8 *s, *e, *p, curCC;
     UV uv;
     UNF_cc * stk_cc;
-    bool chk;
   CODE:
     src = newSVsv(arg);
     if(! SvUTF8(arg)) sv_utf8_upgrade(src);
-
-    chk = items > 1 && SvTRUE(check);
 
     stk_cc_max = 10; /* enough as an initial value? */
     New(0, stk_cc, stk_cc_max, UNF_cc);
 
     s = (U8*)SvPV(src,srclen);
     e = s + srclen;
-    pos_last_S = s;
+
     for(p = s; p < e;){
 	U8 *cc_in;
 	STRLEN cc_len, cc_iter, cc_pos;
 
 	uv = utf8n_to_uvchr(p, e - p, &retlen, 0);
 	curCC = getCombinClass(uv);
-	if(! curCC) pos_last_S = p;
 	p += retlen;
 
 	if(! (curCC && p < e)) continue; else cc_in = p - retlen;
@@ -254,11 +249,6 @@ reorder(arg, check = &PL_sv_no)
 	}
     }
     Safefree(stk_cc);
-    if(chk){
-	sv_setpvn(arg, pos_last_S, e - pos_last_S);
-	SvUTF8_on(arg);
-	SvCUR_set(src, pos_last_S - s);
-    }
     RETVAL = src;
   OUTPUT:
     RETVAL
@@ -266,16 +256,15 @@ reorder(arg, check = &PL_sv_no)
 
 
 SV*
-compose(arg, check = &PL_sv_no)
+compose(arg)
     SV * arg
-    SV * check
-  PROTOTYPE: $;$
+  PROTOTYPE: $
   PREINIT:
     SV  *src, *dst, *tmp;
-    U8  *s, *p, *e, *d, *t, *tmp_start, curCC, preCC, *pos_last_S;
+    U8  *s, *p, *e, *d, *t, *tmp_start, curCC, preCC;
     UV uv, uvS, uvComp;
     STRLEN srclen, dstlen, tmplen, retlen;
-    bool chk, beginning = TRUE;
+    bool beginning = TRUE;
   CODE:
     if(SvUTF8(arg)) {
 	src = arg;
@@ -284,8 +273,6 @@ compose(arg, check = &PL_sv_no)
 	sv_utf8_upgrade(src);
     }
 
-    chk = items > 1 && SvTRUE(check);
-
     s = (U8*)SvPV(src, srclen);
     e = s + srclen;
     dstlen = srclen + 1; /* equal or shorter, XXX */
@@ -293,7 +280,6 @@ compose(arg, check = &PL_sv_no)
     (void)SvPOK_only(dst);
     SvUTF8_on(dst);
     d = (U8*)SvPVX(dst);
-    pos_last_S = d;
 
   /* for uncomposed combining char */
     tmp = sv_2mortal(newSV(dstlen));
@@ -315,7 +301,6 @@ compose(arg, check = &PL_sv_no)
     /* Starter */
 	t = tmp_start = (U8*)SvPVX(tmp);
 	preCC = 0;
-        pos_last_S = d;
 
     /* to the next Starter */
 	while(p < e) {
@@ -351,13 +336,7 @@ compose(arg, check = &PL_sv_no)
     } /* for */
     e = d; /* end of dst */
     d = (U8*)SvPVX(dst);
-    if(chk){
-	sv_setpvn(arg, pos_last_S, e - pos_last_S);
-	SvUTF8_on(arg);
-	SvCUR_set(dst, pos_last_S - d);
-    } else {
-	SvCUR_set(dst, e - d);
-    }
+    SvCUR_set(dst, e - d);
     RETVAL = dst;
   OUTPUT:
     RETVAL

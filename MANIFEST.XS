@@ -4,7 +4,6 @@ Makefile.PL
 MANIFEST
 MANIFEST.NXS
 mkheader
-Normalize.pod
 Normalize.pm
 Normalize.xs
 Normalize.pm.NXS
