@@ -11,7 +11,7 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -41,7 +41,7 @@ our $Decomp = do "unicore/Decomposition.pl"
 our %Combin;  # $codepoint => $number      : combination class
 our %Canon;   # $codepoint => \@codepoints : canonical decomp.
 our %Compat;  # $codepoint => \@codepoints : compat. decomp.
-our %Compos;  # $string    => $codepoint   : composite
+our %Compos;  # $1st,$2nd  => $codepoint   : composite
 our %Exclus;  # $codepoint => 1            : composition exclusions
 our %Single;  # $codepoint => 1            : singletons
 our %NonStD;  # $codepoint => 1            : non-starter decompositions
@@ -71,7 +71,7 @@ our %Comp2nd; # $codepoint => 1            : 2nd character of a composition
 ##
 ## converts string "hhhh hhhh hhhh" to a numeric list
 ##
-sub _getHexArray { map hex(), $_[0] =~ /([0-9A-Fa-f]+)/g }
+sub _getHexArray { map hex, $_[0] =~ /([0-9A-Fa-f]+)/g }
 
 while ($Combin =~ /(.+)/g) {
     my @tab = split /\t/, $1;
@@ -87,21 +87,23 @@ while ($Decomp =~ /(.+)/g) {
     my @tab = split /\t/, $1;
     my $compat = $tab[2] =~ s/<[^>]+>//;
     my $dec = [ _getHexArray($tab[2]) ]; # decomposition
-    my $com = pack('U*', @$dec); # composable sequence
     my $ini = hex($tab[0]);
     if ($tab[1] eq '') {
 	$Compat{ $ini } = $dec;
+
 	if (! $compat) {
 	    $Canon{  $ini } = $dec;
 
-	    if (@$dec > 1) {
+	    if (@$dec == 2) {
 		if ($Combin{ $dec->[0] }) {
 		    $NonStD{ $ini } = 1;
 		} else {
-		    $Compos{ $com } = $ini;
+		    $Compos{ $dec->[0] }{ $dec->[1] } = $ini;
 		}
-	    } else {
+	    } elsif (@$dec == 1) {
 		$Single{ $ini } = 1;
+	    } else {
+		croak("Weird Decomposition Mapping at U+$tab[0]");
 	    }
 
 	    $Comp2nd{ $dec->[1] } = 1
@@ -111,16 +113,18 @@ while ($Decomp =~ /(.+)/g) {
 	foreach my $u ($ini .. hex($tab[1])) {
 	    $Compat{ $u } = $dec;
 	    if (! $compat) {
-		$Canon{  $u }   = $dec;
+		$Canon{ $u } = $dec;
 
-		if (@$dec > 1) {
+		if (@$dec == 2) {
 		    if ($Combin{ $dec->[0] }) {
 			$NonStD{ $u } = 1;
 		    } else {
-			$Compos{ $com } = $u;
+			$Compos{ $dec->[0] }{ $dec->[1] } = $u;
 		    }
-		} else {
+		} elsif (@$dec == 1) {
 		    $Single{ $u } = 1;
+		} else {
+		    croak("Weird Decomposition Mapping at U+$tab[0]");
 		}
 
 		$Comp2nd{ $dec->[1] } = 1
@@ -222,7 +226,7 @@ sub getCompat ($) {
 sub getComposite ($$) {
     my $hangul = getHangulComposite($_[0], $_[1]);
     return $hangul if $hangul;
-    return $Compos{ pack('U*', @_[0,1]) } || undef;
+    return $Compos{ $_[0] } && $Compos{ $_[0] }{ $_[1] };
 }
 
 sub isExclusion  ($) { exists $Exclus{$_[0]} }
@@ -337,14 +341,16 @@ sub NFKC ($) { compose(reorder(decompose($_[0], COMPAT))) }
 sub normalize($$)
 {
     my $form = shift;
+    my $str = shift;
     $form =~ s/^NF//;
     return
-	$form eq 'D'  ? NFD ($_[0]) :
-	$form eq 'C'  ? NFC ($_[0]) :
-	$form eq 'KD' ? NFKD($_[0]) :
-	$form eq 'KC' ? NFKC($_[0]) :
+	$form eq 'D'  ? NFD ($str) :
+	$form eq 'C'  ? NFC ($str) :
+	$form eq 'KD' ? NFKD($str) :
+	$form eq 'KC' ? NFKC($str) :
       croak $PACKAGE."::normalize: invalid form name: $form";
 }
+
 
 ##
 ## quick check
@@ -414,12 +420,13 @@ sub checkNFKC ($)
 sub check($$)
 {
     my $form = shift;
+    my $str = shift;
     $form =~ s/^NF//;
     return
-	$form eq 'D'  ? checkNFD ($_[0]) :
-	$form eq 'C'  ? checkNFC ($_[0]) :
-	$form eq 'KD' ? checkNFKD($_[0]) :
-	$form eq 'KC' ? checkNFKC($_[0]) :
+	$form eq 'D'  ? checkNFD ($str) :
+	$form eq 'C'  ? checkNFC ($str) :
+	$form eq 'KD' ? checkNFKD($str) :
+	$form eq 'KC' ? checkNFKC($str) :
       croak $PACKAGE."::check: invalid form name: $form";
 }
 
@@ -428,7 +435,7 @@ __END__
 
 =head1 NAME
 
-Unicode::Normalize - normalized forms of Unicode text
+Unicode::Normalize - Unicode Normalization Forms
 
 =head1 SYNOPSIS
 
@@ -528,7 +535,7 @@ you can get its NFC/NFKC string, saying
 
 =head2 Quick Check
 
-(see Annex 8, UAX #15; F<DerivedNormalizationProperties.txt>)
+(see Annex 8, UAX #15; F<DerivedNormalizationProps.txt>)
 
 The following functions check whether the string is in that normalization form.
 
@@ -542,23 +549,23 @@ The result returned will be:
 
 =item C<$result = checkNFD($string)>
 
-returns YES (1) or NO (empty string).
+returns C<YES> (C<1>) or C<NO> (C<empty string>).
 
 =item C<$result = checkNFC($string)>
 
-returns YES (1), NO (empty string), or MAYBE (undef).
+returns C<YES> (C<1>), C<NO> (C<empty string>), or C<MAYBE> (C<undef>).
 
 =item C<$result = checkNFKD($string)>
 
-returns YES (1) or NO (empty string).
+returns C<YES> (C<1>) or C<NO> (C<empty string>).
 
 =item C<$result = checkNFKC($string)>
 
-returns YES (1), NO (empty string), or MAYBE (undef).
+returns C<YES> (C<1>), C<NO> (C<empty string>), or C<MAYBE> (C<undef>).
 
 =item C<$result = check($form_name, $string)>
 
-returns YES (1), NO (empty string), or MAYBE (undef).
+returns C<YES> (C<1>), C<NO> (C<empty string>), or C<MAYBE> (C<undef>).
 
 C<$form_name> is alike to that for C<normalize()>.
 
@@ -575,7 +582,7 @@ For example, C<COMBINING ACUTE ACCENT> has
 the MAYBE_NFC/MAYBE_NFKC property.
 Both C<checkNFC("A\N{COMBINING ACUTE ACCENT}")>
 and C<checkNFC("B\N{COMBINING ACUTE ACCENT}")> will return C<MAYBE>.
-Though, C<"A\N{COMBINING ACUTE ACCENT}"> is not in NFC 
+C<"A\N{COMBINING ACUTE ACCENT}"> is not in NFC
 (its NFC is C<"\N{LATIN CAPITAL LETTER A WITH ACUTE}">),
 while C<"B\N{COMBINING ACUTE ACCENT}"> is in NFC.
 
@@ -598,7 +605,7 @@ If the character of the specified codepoint is canonically
 decomposable (including Hangul Syllables),
 returns the B<completely decomposed> string canonically equivalent to it.
 
-If it is not decomposable, returns undef.
+If it is not decomposable, returns C<undef>.
 
 =item C<$compatibility_decomposed = getCompat($codepoint)>
 
@@ -606,7 +613,7 @@ If the character of the specified codepoint is compatibility
 decomposable (including Hangul Syllables),
 returns the B<completely decomposed> string compatibility equivalent to it.
 
-If it is not decomposable, returns undef.
+If it is not decomposable, returns C<undef>.
 
 =item C<$codepoint_composite = getComposite($codepoint_here, $codepoint_next)>
 
@@ -614,7 +621,7 @@ If two characters here and next (as codepoints) are composable
 (including Hangul Jamo/Syllables and Composition Exclusions),
 returns the codepoint of the composite.
 
-If they are not composable, returns undef.
+If they are not composable, returns C<undef>.
 
 =item C<$combining_class = getCombinClass($codepoint)>
 
@@ -670,7 +677,7 @@ SADAHIRO Tomoyuki, E<lt>SADAHIRO@cpan.orgE<gt>
 
 Unicode Normalization Forms - UAX #15
 
-=item http://www.unicode.org/Public/UNIDATA/DerivedNormalizationProperties.txt
+=item http://www.unicode.org/Public/UNIDATA/DerivedNormalizationProps.txt
 
 Derived Normalization Properties
 
