@@ -1,0 +1,16 @@
+README
+Changes
+Makefile.PL
+MANIFEST	MANIFEST for No-XSUB
+MANIFEST.X	MANIFEST for XSUB
+disableXS
+enableXS
+mkheader
+Normalize.pm	.pm for No-XSUB
+Normalize.pmX	.pm for XSUB
+Normalize.xsX	.xs for XSUB
+t/fcdc.t
+t/func.t
+t/norm.t
+t/split.t
+t/test.t
