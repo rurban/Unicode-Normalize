@@ -6,14 +6,18 @@ use warnings;
 use Carp;
 use Lingua::KO::Hangul::Util 0.06;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw( NFC NFD NFKC NFKD );
-our @EXPORT_OK = qw( normalize decompose reorder compose 
-    getCanon getCompat getComposite getCombinClass getExclusion);
+our @EXPORT_OK = qw(
+    normalize
+    decompose reorder compose
+    getCanon getCompat getComposite getCombinClass isExclusion
+    NFC_check NFD_check NFKC_check NFKD_check
+);
 our %EXPORT_TAGS = ( all => [ @EXPORT, @EXPORT_OK ] );
 
 our $Combin = do "unicore/CombiningClass.pl"
@@ -48,6 +52,11 @@ our %Exclus; # $codepoint => 1            : composition exclusions
     }
     close $fh;
 }
+
+##
+## converts string "hhhh hhhh hhhh" to a numeric list
+##
+sub _getHexArray { map hex(), $_[0] =~ /([0-9A-Fa-f]+)/g }
 
 while($Combin =~ /(.+)/g) {
     my @tab = split /\t/, $1;
@@ -121,49 +130,54 @@ sub getCompat ($) {
 sub getComposite ($$) {
     my $hangul = getHangulComposite($_[0], $_[1]);
     return $hangul if $hangul;
-    return $Compos{ pack('U*', @_[0,1]) } || 0;
+    return $Compos{ pack('U*', @_[0,1]) } || undef;
 }
 
-sub getExclusion ($) {
+sub isExclusion ($) {
     return exists $Exclus{$_[0]} ? 1 : 0;
 }
 
 ##
 ## string decompose(string, compat?)
 ##
-sub isHangul ($) { 0xAC00 <= $_[0] && $_[0] <= 0xD7A3 }
-
 sub decompose {
     my $hash = $_[1] ? \%Compat : \%Canon;
     return pack 'U*', map {
 	$hash->{ $_ } ? @{ $hash->{ $_ } } :
-	isHangul($_) ? decomposeHangul($_) : $_
+	0xAC00 <= $_ && $_ <= 0xD7A3 ? decomposeHangul($_) : $_
     } unpack('U*', $_[0]);
 }
 
 ##
-## string reorder(string)
+## string reorder(string, check?)
 ##
 sub reorder {
     my @src = unpack('U*', $_[0]);
+    my $chk = $_[1] ? 1 : 0;
+
+    my $pos_last_S = 0;
 
     for(my $i=0; $i < @src;){
-	$i++, next unless $Combin{ $src[$i] } 
-	    && $i+1 < @src && $Combin{ $src[$i+1] };
+	$pos_last_S = $i++, next if ! $Combin{ $src[$i] };
+
 	my $ini = $i;
 	$i++ while $i < @src && $Combin{ $src[$i] };
+
         my @tmp = sort {
 		$Combin{ $src[$a] } <=> $Combin{ $src[$b] } || $a <=> $b
 	    } $ini .. $i - 1;
 
 	@src[ $ini .. $i - 1 ] = @src[ @tmp ];
     }
+    if($chk) {
+	$_[0] = pack 'U*', splice @src, $pos_last_S;
+    }
     return pack('U*', @src);
 }
 
 
 ##
-## string compose(string)
+## string compose(string, check?)
 ##
 ## S : starter; NS : not starter;
 ##
@@ -174,9 +188,15 @@ sub reorder {
 sub compose
 {
     my @src = unpack('U*', $_[0]);
+    my $chk = $_[1] ? 1 : 0;
+
+    my $pos_last_S = 0;
 
     for(my $s = 0; $s+1 < @src; $s++){
-	next unless defined $src[$s] && ! $Combin{ $src[$s] }; # S only
+	next unless defined $src[$s] && ! $Combin{ $src[$s] };
+	 # S only; removed or combining are skipped as a starter.
+
+	$pos_last_S = $s;
 
 	my($c, $blocked, $uncomposed_cc);
 	for(my $j = $s+1; $j < @src && !$blocked; $j++){
@@ -199,13 +219,11 @@ sub compose
 	    if($blocked) { $blocked = 0 } else { -- $uncomposed_cc }
 	}
     }
+    if($chk) {
+	$_[0] = pack 'U*', grep defined(), splice @src, $pos_last_S;
+    }
     return pack 'U*', grep defined(), @src;
 }
-
-##
-## "hhhh hhhh hhhh" to (dddd, dddd, dddd)
-##
-sub _getHexArray { map hex(), $_[0] =~ /([0-9A-Fa-f]+)/g }
 
 ##
 ## normalization forms
@@ -213,23 +231,45 @@ sub _getHexArray { map hex(), $_[0] =~ /([0-9A-Fa-f]+)/g }
 
 use constant CANON  => 0;
 use constant COMPAT => 1;
+use constant CHECKD => 1;
 
-sub NFD  ($) { reorder(decompose($_[0], CANON)) }
-
+sub NFD  ($) { reorder(decompose($_[0], CANON )) }
 sub NFKD ($) { reorder(decompose($_[0], COMPAT)) }
 
-sub NFC  ($) { compose(reorder(decompose($_[0], CANON))) }
-
+sub NFC  ($) { compose(reorder(decompose($_[0], CANON ))) }
 sub NFKC ($) { compose(reorder(decompose($_[0], COMPAT))) }
+
+sub NFD_check ($) {
+    $_[0] = decompose($_[0], CANON );
+    reorder($_[0], CHECKD);
+}
+sub NFKD_check($) {
+    $_[0] = decompose($_[0], COMPAT);
+    reorder($_[0], CHECKD);
+}
+sub NFC_check ($) {
+    $_[0] = reorder(decompose($_[0], CANON ));
+    compose($_[0], CHECKD);
+}
+sub NFKC_check($) {
+    $_[0] = reorder(decompose($_[0], COMPAT));
+    compose($_[0], CHECKD);
+}
 
 sub normalize($$)
 {
-    my($form,$str) = @_;
-    $form eq 'D'  || $form eq 'NFD'  ? NFD($str) :
-    $form eq 'C'  || $form eq 'NFC'  ? NFC($str) :
-    $form eq 'KD' || $form eq 'NFKD' ? NFKD($str) :
-    $form eq 'KC' || $form eq 'NFKC' ? NFKC($str) :
-    croak $PACKAGE."::normalize: invalid form name: $form";
+    my $form = shift;
+    $form =~ /^NF/;
+    return
+	$form eq 'D'  ? NFD ($_[0]) :
+	$form eq 'C'  ? NFC ($_[0]) :
+	$form eq 'KD' ? NFKD($_[0]) :
+	$form eq 'KC' ? NFKC($_[0]) :
+	$form eq 'D_check'  ? NFD_check ($_[0]) :
+	$form eq 'C_check'  ? NFC_check ($_[0]) :
+	$form eq 'KD_check' ? NFKD_check($_[0]) :
+	$form eq 'KC_check' ? NFKC_check($_[0]) :
+      croak $PACKAGE."::normalize: invalid form name: $form";
 }
 
 ##

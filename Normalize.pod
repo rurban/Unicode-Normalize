@@ -23,6 +23,8 @@ Unicode::Normalize - normalized forms of Unicode text
 
 =head1 DESCRIPTION
 
+=head2 Normalization
+
 =over 4
 
 =item C<$string_NFD = NFD($raw_string)>
@@ -55,11 +57,66 @@ As C<$form_name>, one of the following names must be given.
 
 =back
 
+=head2 Character Data
+
+These functions are interface of character data used internally.
+If you want only to get unicode normalization forms, 
+you need not to call them by yourself.
+
+=over 4
+
+=item C<$canonical_decomposed = getCanon($codepoint)>
+
+=item C<$compatibility_decomposed = getCompat($codepoint)>
+
+If the character of the specified codepoint is canonically or 
+compatibility decomposable (including Hangul Syllables),
+returns the B<completely decomposed> string equivalent to it.
+
+e.g. C<getCanon(0x1F82)> returns C<"\x{03B1}\x{0313}\x{0300}\x{0345}">,
+but B<not> C<"\x{1F02}\x{0345}">,
+where
+
+    1F82; GREEK SMALL LETTER ALPHA WITH PSILI AND VARIA AND YPOGEGRAMMENI
+    1F02; GREEK SMALL LETTER ALPHA WITH PSILI AND VARIA
+    03B1; GREEK SMALL LETTER ALPHA
+    0313; COMBINING COMMA ABOVE
+    0300; COMBINING GRAVE ACCENT
+    0345; COMBINING GREEK YPOGEGRAMMENI
+
+If it is not decomposable, returns undef.
+
+=item C<$uv_composite = getComposite($uv_here, $uv_next)>
+
+If the couple of two characters here and next (as codepoints) is composable
+(including Hangul Jamo/Syllables and Exclusions),
+returns the codepoint of the composite.
+
+e.g. C<getComposite(0x0041, 0x0300)> returns C<0x00C0>,
+where 
+
+    00C0; LATIN CAPITAL LETTER A WITH GRAVE
+    0041; LATIN CAPITAL LETTER A
+    0300; COMBINING GRAVE ACCENT
+
+If they are not composable, returns undef.
+
+=item C<$combining_class = getCombinClass($codepoint)>
+
+Returns the combining class as integer of the character.
+
+=item C<$is_exclusion = isExclusion($codepoint)>
+
+Returns a boolean whether the character of the specified codepoint is
+a composition exclusion.
+
+=back
+
 =head2 EXPORT
 
 C<NFC>, C<NFD>, C<NFKC>, C<NFKD>: by default.
 
-C<normalize>: on request.
+C<normalize> and other some functions: on request.
 
 =head1 AUTHOR
 
@@ -76,13 +133,13 @@ SADAHIRO Tomoyuki, E<lt>SADAHIRO@cpan.orgE<gt>
 
 =over 4
 
-=item L<Lingua::KO::Hangul::Util>
-
-utility functions for Hangul Syllables
-
 =item http://www.unicode.org/unicode/reports/tr15/
 
 Unicode Normalization Forms - UAX #15
+
+=item L<Lingua::KO::Hangul::Util>
+
+utility functions for Hangul Syllables
 
 =back
 

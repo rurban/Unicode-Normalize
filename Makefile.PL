@@ -43,4 +43,5 @@ WriteMakefile(
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM => 'Normalize.pod', # retrieve abstract from module
        AUTHOR     => 'SADAHIRO Tomoyuki <SADAHIRO@cpan.org>') : ()),
+    clean => {FILES=> 'unfcan.h unfcmb.h unfcmp.h unfcpt.h unfexc.h'},
 );
