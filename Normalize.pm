@@ -6,13 +6,14 @@ use warnings;
 use Carp;
 use Lingua::KO::Hangul::Util;
 
-our $VERSION = '0.04';
+our $VERSION = '0.06';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw( NFC NFD NFKC NFKD );
-our @EXPORT_OK = qw( normalize );
+our @EXPORT_OK = qw( normalize getCanon getCompat
+		getComposite getCombinClass getExclusion);
 our %EXPORT_TAGS = ( all => [ @EXPORT, @EXPORT_OK ] );
 
 our $Combin = do "unicore/CombiningClass.pl"
@@ -74,7 +75,7 @@ while($Decomp =~ /(.+)/g)
     $Compat{ $ini } = $dec;
     if(! $compat){
       $Canon{  $ini } = $dec;
-      $Compos{ $com } = $ini;
+      $Compos{ $com } = $ini if @$dec > 1;
     }
   }
   else
@@ -83,7 +84,7 @@ while($Decomp =~ /(.+)/g)
       $Compat{ $u } = $dec;
       if(! $compat){
         $Canon{  $u }   = $dec;
-        $Compos{ $com } = $ini;
+        $Compos{ $com } = $ini if @$dec > 1;
       }
     }
   }
@@ -221,6 +222,27 @@ sub _getCanon  { wantarray ? %Canon  : \%Canon  }
 sub _getCompat { wantarray ? %Compat : \%Compat }
 sub _getCompos { wantarray ? %Compos : \%Compos }
 sub _getExclus { wantarray ? %Exclus : \%Exclus }
+
+sub getCombinClass ($) {
+    return $Combin{$_[0]} || 0;
+}
+
+sub getCanon ($) {
+    return exists $Canon{$_[0]} ? pack('U*', @{ $Canon{$_[0]} }) : undef;
+}
+
+sub getCompat ($) {
+    return exists $Compat{$_[0]} ? pack('U*', @{ $Compat{$_[0]} }) : undef;
+}
+
+sub getComposite ($$) {
+    return $Compos{ pack('U*', @_[0,1]) } || 0;
+}
+
+sub getExclusion ($) {
+    return exists $Exclus{$_[0]} ? 1 : 0;
+}
+
 1;
 __END__
 

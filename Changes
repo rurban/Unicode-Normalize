@@ -1,5 +1,14 @@
 Revision history for Perl extension Unicode::Normalize.
 
+0.06  Wed Oct 28 14:28:46 2001
+	- an XS version.
+	(but the Non-XS version is also supported.)
+
+0.05  Wed Oct 10 22:02:15 2001 (not released)
+	- %Compos contains unnecessary singletons
+	  (though it did not cause any bug, only useless).
+	  They will not be stored.
+
 0.04  Wed Aug 15 19:02:41 2001
 	- fix: NFD("") and NFKD("") must return "", not but undef.
 

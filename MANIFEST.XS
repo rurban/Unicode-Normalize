@@ -1,0 +1,12 @@
+README
+Changes
+Makefile.PL
+MANIFEST
+MANIFEST.NXS
+Normalize.pm.NXS
+Normalize.pm
+Normalize.xs
+mkheader
+t/func.t
+t/norm.t
+t/test.t
