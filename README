@@ -1,4 +1,4 @@
-Unicode/Normalize version 0.22
+Unicode/Normalize version 0.23
 ===================================
 
 Unicode::Normalize - Unicode Normalization Forms
@@ -24,7 +24,7 @@ SYNOPSIS
 
 INSTALLATION
 
-Perl 5.6.1 or later
+Perl 5.6.1 or later (Caution: Perl 5.6.0 is not recommended.)
 
 To install this module type the following:
 
@@ -52,7 +52,7 @@ type the following:
 
 DEPENDENCIES
 
-This module requires these other modules and libraries:
+This module requires other modules and libraries following:
 
 Carp
 Exporter

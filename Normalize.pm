@@ -12,7 +12,7 @@ use warnings;
 use Carp;
 use File::Spec;
 
-our $VERSION = '0.22';
+our $VERSION = '0.23';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -228,50 +228,93 @@ sub decomposeHangul {
 
 ##########
 
-sub getCombinClass ($) { $Combin{$_[0]} || 0 }
+sub getCombinClass ($) {
+    my $uv = 0 + shift;
+    return $Combin{$uv} || 0;
+}
 
 sub getCanon ($) {
-    return exists $Canon{$_[0]}
-	? pack_U(@{ $Canon{$_[0]} })
-	: (SBase <= $_[0] && $_[0] <= SFinal)
-	    ? scalar decomposeHangul($_[0])
+    my $uv = 0 + shift;
+    return exists $Canon{$uv}
+	? pack_U(@{ $Canon{$uv} })
+	: (SBase <= $uv && $uv <= SFinal)
+	    ? scalar decomposeHangul($uv)
 	    : undef;
 }
 
 sub getCompat ($) {
-    return exists $Compat{$_[0]}
-	? pack_U(@{ $Compat{$_[0]} })
-	: (SBase <= $_[0] && $_[0] <= SFinal)
-	    ? scalar decomposeHangul($_[0])
+    my $uv = 0 + shift;
+    return exists $Compat{$uv}
+	? pack_U(@{ $Compat{$uv} })
+	: (SBase <= $uv && $uv <= SFinal)
+	    ? scalar decomposeHangul($uv)
 	    : undef;
 }
 
 sub getComposite ($$) {
-    my $hangul = getHangulComposite($_[0], $_[1]);
+    my $uv1 = 0 + shift;
+    my $uv2 = 0 + shift;
+    my $hangul = getHangulComposite($uv1, $uv2);
     return $hangul if $hangul;
-    return $Compos{ $_[0] } && $Compos{ $_[0] }{ $_[1] };
+    return $Compos{ $uv1 } && $Compos{ $uv1 }{ $uv2 };
 }
 
-sub isExclusion  ($) { exists $Exclus{$_[0]} }
-sub isSingleton  ($) { exists $Single{$_[0]} }
-sub isNonStDecomp($) { exists $NonStD{$_[0]} }
-sub isComp2nd    ($) { exists $Comp2nd{$_[0]} }
+sub isExclusion  ($) {
+    my $uv = 0 + shift;
+    return exists $Exclus{$uv};
+}
 
-sub isNFC_MAYBE ($) { exists $Comp2nd{$_[0]} }
-sub isNFKC_MAYBE($) { exists $Comp2nd{$_[0]} }
-sub isNFD_NO    ($) {
-    exists $Canon {$_[0]} || (SBase <= $_[0] && $_[0] <= SFinal) }
-sub isNFKD_NO   ($) {
-    exists $Compat{$_[0]} || (SBase <= $_[0] && $_[0] <= SFinal) }
-sub isComp_Ex   ($) {
-    exists $Exclus{$_[0]} || exists $Single{$_[0]} || exists $NonStD{$_[0]} }
-sub isNFC_NO    ($) {
-    exists $Exclus{$_[0]} || exists $Single{$_[0]} || exists $NonStD{$_[0]} }
-sub isNFKC_NO   ($) {
-    return 1  if $Exclus{$_[0]} || $Single{$_[0]} || $NonStD{$_[0]};
-    return '' if (SBase <= $_[0] && $_[0] <= SFinal) || !exists $Compat{$_[0]};
-    return 1  if ! exists $Canon{$_[0]};
-    return pack('N*', @{ $Canon{$_[0]} }) ne pack('N*', @{ $Compat{$_[0]} });
+sub isSingleton  ($) {
+    my $uv = 0 + shift;
+    return exists $Single{$uv};
+}
+
+sub isNonStDecomp($) {
+    my $uv = 0 + shift;
+    return exists $NonStD{$uv};
+}
+
+sub isComp2nd ($) {
+    my $uv = 0 + shift;
+    return exists $Comp2nd{$uv};
+}
+
+sub isNFC_MAYBE ($) {
+    my $uv = 0 + shift;
+    return exists $Comp2nd{$uv};
+}
+
+sub isNFKC_MAYBE($) {
+    my $uv = 0 + shift;
+    return exists $Comp2nd{$uv};
+}
+
+sub isNFD_NO ($) {
+    my $uv = 0 + shift;
+    return exists $Canon {$uv} || (SBase <= $uv && $uv <= SFinal);
+}
+
+sub isNFKD_NO ($) {
+    my $uv = 0 + shift;
+    return exists $Compat{$uv} || (SBase <= $uv && $uv <= SFinal);
+}
+
+sub isComp_Ex ($) {
+    my $uv = 0 + shift;
+    return exists $Exclus{$uv} || exists $Single{$uv} || exists $NonStD{$uv};
+}
+
+sub isNFC_NO ($) {
+    my $uv = 0 + shift;
+    return exists $Exclus{$uv} || exists $Single{$uv} || exists $NonStD{$uv};
+}
+
+sub isNFKC_NO ($) {
+    my $uv = 0 + shift;
+    return 1  if $Exclus{$uv} || $Single{$uv} || $NonStD{$uv};
+    return '' if (SBase <= $uv && $uv <= SFinal) || !exists $Compat{$uv};
+    return 1  if ! exists $Canon{$uv};
+    return pack('N*', @{ $Canon{$uv} }) ne pack('N*', @{ $Compat{$uv} });
 }
 
 ##
@@ -479,6 +522,19 @@ Unicode::Normalize - Unicode Normalization Forms
   $NFKC_string = normalize('KC', $string);  # Normalization Form KC
 
 =head1 DESCRIPTION
+
+Parameters:
+
+C<$string> is used as a string under character semantics
+(see F<perlunicode>).
+
+C<$codepoint> should be an unsigned integer
+representing a Unicode code point.
+
+Note: Between XS edition and pure Perl edition,
+interpretation of C<$codepoint> as a decimal number has incompatibility.
+XS converts C<$codepoint> to an unsigned integer, but pure Perl does not.
+Do not use a floating point nor a negative sign in C<$codepoint>.
 
 =head2 Normalization Forms
 
