@@ -32,19 +32,16 @@ if ($arg =~ /^xs/i and -f "Normalize.xs.XS") {
 
 my $clean = {};
 
-if(-f "Normalize.xs") {
+if (-f "Normalize.xs") {
     print STDERR "Making header files for XS...\n";
 
     do "mkheader";
-    $clean = {FILES=> 'unfcan.h unfcmb.h unfcmp.h unfcpt.h unfexc.h'};
+    $clean = { FILES => 'unfcan.h unfcmb.h unfcmp.h unfcpt.h unfexc.h' };
 }
 
 WriteMakefile(
-    'INSTALLDIRS' => $] > 5.007 ? 'perl' : 'site',
+    'INSTALLDIRS'	=> $] > 5.007 ? 'perl' : 'site',
     'NAME'		=> 'Unicode::Normalize',
     'VERSION_FROM'	=> 'Normalize.pm', # finds $VERSION
-    ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
-      (ABSTRACT_FROM => 'Normalize.pm', # retrieve abstract from module
-       AUTHOR     => 'SADAHIRO Tomoyuki <SADAHIRO@cpan.org>') : ()),
-    clean => $clean,
+    'clean'		=> $clean,
 );
