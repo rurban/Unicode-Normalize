@@ -1,9 +1,11 @@
-Unicode/Normalize version 0.28
+Unicode/Normalize version 0.30
 ===================================
 
 Unicode::Normalize - Unicode Normalization Forms
 
 SYNOPSIS
+
+(1) using function names exported by default:
 
   use Unicode::Normalize;
 
@@ -12,7 +14,7 @@ SYNOPSIS
   $NFKD_string = NFKD($string); # Normalization Form KD
   $NFKC_string = NFKC($string); # Normalization Form KC
 
-  or
+(2) using function names exported on request:
 
   use Unicode::Normalize 'normalize';
 
@@ -20,7 +22,6 @@ SYNOPSIS
   $NFC_string  = normalize('C',  $string);  # Normalization Form C
   $NFKD_string = normalize('KD', $string);  # Normalization Form KD
   $NFKC_string = normalize('KC', $string);  # Normalization Form KC
-
 
 INSTALLATION
 
@@ -90,7 +91,7 @@ COPYRIGHT AND LICENCE
 
   http://homepage1.nifty.com/nomenclator/perl/
 
-  Copyright(C) 2001-2003, SADAHIRO Tomoyuki. Japan. All rights reserved.
+  Copyright(C) 2001-2004, SADAHIRO Tomoyuki. Japan. All rights reserved.
 
   This module is free software; you can redistribute it
   and/or modify it under the same terms as Perl itself.
