@@ -118,7 +118,7 @@ U8 getCombinClass (UV uv)
     return row ? row[uv & 0xff] : 0;
 }
 
-SV* call_decompHangul (pTHX_ UV uv)
+SV* call_decompHangul (UV uv)
 {
   dSP;
   int count;

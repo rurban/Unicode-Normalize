@@ -6,23 +6,23 @@ use warnings;
 use Carp;
 use Lingua::KO::Hangul::Util 0.06;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw( NFC NFD NFKC NFKD );
 our @EXPORT_OK = qw( normalize decompose reorder compose 
-	getCanon getCompat getComposite getCombinClass getExclusion);
+    getCanon getCompat getComposite getCombinClass getExclusion);
 our %EXPORT_TAGS = ( all => [ @EXPORT, @EXPORT_OK ] );
 
 our $Combin = do "unicore/CombiningClass.pl"
-           || do "unicode/CombiningClass.pl"
-           || croak "$PACKAGE: CombiningClass.pl not found";
+    || do "unicode/CombiningClass.pl"
+    || croak "$PACKAGE: CombiningClass.pl not found";
 
 our $Decomp = do "unicore/Decomposition.pl"
-           || do "unicode/Decomposition.pl"
-           || croak "$PACKAGE: Decomposition.pl not found";
+    || do "unicode/Decomposition.pl"
+    || croak "$PACKAGE: Decomposition.pl not found";
 
 our %Combin; # $codepoint => $number      : combination class
 our %Canon;  # $codepoint => \@codepoints : canonical decomp.
@@ -31,101 +31,91 @@ our %Compos; # $string    => $codepoint   : composite
 our %Exclus; # $codepoint => 1            : composition exclusions
 
 {
-  my($f, $fh);
-  foreach my $d (@INC) {
-    use File::Spec;
-    $f = File::Spec->catfile($d, "unicore", "CompExcl.txt");
-    last if open($fh, $f);
-    $f = File::Spec->catfile($d, "unicode", "CompExcl.txt");
-    last if open($fh, $f);
-    $f = undef;
-  }
-  croak "$PACKAGE: CompExcl.txt not found in @INC" unless defined $f;
-  while(<$fh>){
-    next if /^#/ or /^$/;
-    s/#.*//;
-    $Exclus{ hex($1) } =1 if /([0-9A-Fa-f]+)/;
-  }
-  close $fh;
+    my($f, $fh);
+    foreach my $d (@INC) {
+	use File::Spec;
+	$f = File::Spec->catfile($d, "unicore", "CompExcl.txt");
+	last if open($fh, $f);
+	$f = File::Spec->catfile($d, "unicode", "CompExcl.txt");
+	last if open($fh, $f);
+	$f = undef;
+    }
+    croak "$PACKAGE: CompExcl.txt not found in @INC" unless defined $f;
+    while(<$fh>){
+	next if /^#/ or /^$/;
+	s/#.*//;
+	$Exclus{ hex($1) } =1 if /([0-9A-Fa-f]+)/;
+    }
+    close $fh;
 }
 
-while($Combin =~ /(.+)/g)
-{
-  my @tab = split /\t/, $1;
-  my $ini = hex $tab[0];
-  if($tab[1] eq '')
-  {
-    $Combin{ $ini } = $tab[2];
-  }
-  else
-  {
-    $Combin{ $_ } = $tab[2] foreach $ini .. hex($tab[1]);
-  }
+while($Combin =~ /(.+)/g) {
+    my @tab = split /\t/, $1;
+    my $ini = hex $tab[0];
+    if($tab[1] eq '') {
+	$Combin{ $ini } = $tab[2];
+    } else {
+	$Combin{ $_ } = $tab[2] foreach $ini .. hex($tab[1]);
+    }
 }
 
-while($Decomp =~ /(.+)/g)
-{
-  my @tab = split /\t/, $1;
-  my $compat = $tab[2] =~ s/<[^>]+>//;
-  my $dec = [ _getHexArray($tab[2]) ]; # decomposition
-  my $com = pack('U*', @$dec); # composable sequence
-  my $ini = hex($tab[0]);
-  if($tab[1] eq '')
-  {
-    $Compat{ $ini } = $dec;
-    if(! $compat){
-      $Canon{  $ini } = $dec;
-      $Compos{ $com } = $ini if @$dec > 1;
+while($Decomp =~ /(.+)/g) {
+    my @tab = split /\t/, $1;
+    my $compat = $tab[2] =~ s/<[^>]+>//;
+    my $dec = [ _getHexArray($tab[2]) ]; # decomposition
+    my $com = pack('U*', @$dec); # composable sequence
+    my $ini = hex($tab[0]);
+    if($tab[1] eq '') {
+	$Compat{ $ini } = $dec;
+	if(! $compat) {
+	    $Canon{  $ini } = $dec;
+	    $Compos{ $com } = $ini if @$dec > 1;
+        }
+    } else {
+	foreach my $u ($ini .. hex($tab[1])){
+	    $Compat{ $u } = $dec;
+		if(! $compat){
+		$Canon{  $u }   = $dec;
+		$Compos{ $com } = $ini if @$dec > 1;
+	    }
+	}
     }
-  }
-  else
-  {
-    foreach my $u ($ini .. hex($tab[1])){
-      $Compat{ $u } = $dec;
-      if(! $compat){
-        $Canon{  $u }   = $dec;
-        $Compos{ $com } = $ini if @$dec > 1;
-      }
-    }
-  }
 }
 
 sub getCanonList {
-  my @src = @_;
-  my @dec = map $Canon{$_} ? @{ $Canon{$_} } : $_, @src;
-  join(" ",@src) eq join(" ",@dec) ? @dec : getCanonList(@dec);
-  # condition @src == @dec is not ok.
+    my @src = @_;
+    my @dec = map $Canon{$_} ? @{ $Canon{$_} } : $_, @src;
+    join(" ",@src) eq join(" ",@dec) ? @dec : getCanonList(@dec);
+    # condition @src == @dec is not ok.
 }
 
 sub getCompatList {
-  my @src = @_;
-  my @dec = map $Compat{$_} ? @{ $Compat{$_} } : $_, @src;
-  join(" ",@src) eq join(" ",@dec) ? @dec : getCompatList(@dec);
-  # condition @src == @dec is not ok.
+    my @src = @_;
+    my @dec = map $Compat{$_} ? @{ $Compat{$_} } : $_, @src;
+    join(" ",@src) eq join(" ",@dec) ? @dec : getCompatList(@dec);
+    # condition @src == @dec is not ok.
 }
 
-foreach my $key (keys %Canon)  # exhaustive decomposition
-{
-   $Canon{$key}  = [ getCanonList($key) ];
+foreach my $key (keys %Canon) { # exhaustive decomposition
+    $Canon{$key}  = [ getCanonList($key) ];
 }
 
-foreach my $key (keys %Compat) # exhaustive decomposition
-{
-   $Compat{$key} = [ getCompatList($key) ];
+foreach my $key (keys %Compat) { # exhaustive decomposition
+    $Compat{$key} = [ getCompatList($key) ];
 }
 
 sub getCombinClass ($) { $Combin{$_[0]} || 0 }
 
 sub getCanon ($) { 
-   return exists $Canon{$_[0]}
-        ? pack('U*', @{ $Canon{$_[0]} })
-        : scalar decomposeHangul($_[0]);
+    return exists $Canon{$_[0]}
+	? pack('U*', @{ $Canon{$_[0]} })
+	: scalar decomposeHangul($_[0]);
 }
 
 sub getCompat ($) {
     return exists $Compat{$_[0]}
-        ? pack('U*', @{ $Compat{$_[0]} })
-        : scalar decomposeHangul($_[0]);
+	? pack('U*', @{ $Compat{$_[0]} })
+	: scalar decomposeHangul($_[0]);
 }
 
 sub getComposite ($$) {
@@ -234,11 +224,11 @@ sub NFKC ($) { compose(reorder(decompose($_[0], COMPAT))) }
 
 sub normalize($$)
 {
-  my($form,$str) = @_;
-  $form eq 'D'  || $form eq 'NFD'  ? NFD($str) :
-  $form eq 'C'  || $form eq 'NFC'  ? NFC($str) :
-  $form eq 'KD' || $form eq 'NFKD' ? NFKD($str) :
-  $form eq 'KC' || $form eq 'NFKC' ? NFKC($str) :
+    my($form,$str) = @_;
+    $form eq 'D'  || $form eq 'NFD'  ? NFD($str) :
+    $form eq 'C'  || $form eq 'NFC'  ? NFC($str) :
+    $form eq 'KD' || $form eq 'NFKD' ? NFKD($str) :
+    $form eq 'KC' || $form eq 'NFKC' ? NFKC($str) :
     croak $PACKAGE."::normalize: invalid form name: $form";
 }
 

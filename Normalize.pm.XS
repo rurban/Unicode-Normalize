@@ -6,7 +6,7 @@ use warnings;
 use Carp;
 use Lingua::KO::Hangul::Util;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
