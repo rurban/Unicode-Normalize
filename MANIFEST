@@ -20,3 +20,4 @@ t/proto.t
 t/short.t
 t/split.t
 t/test.t
+t/tie.t
