@@ -1,4 +1,3 @@
-
 use File::Copy qw();
 
 if (-f "Normalize.xsX") {
@@ -11,4 +10,3 @@ if (-f "Normalize.xsX") {
 	and File::Copy::move('Normalize.xsX',	'Normalize.xs')
 	and File::Copy::move('Normalize.pmX',	'Normalize.pm');
 }
-
