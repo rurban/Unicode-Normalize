@@ -15,7 +15,7 @@ no warnings 'utf8';
 
 use File::Spec;
 
-our $VERSION = '1.03';
+our $VERSION = '1.04';
 our $PACKAGE = __PACKAGE__;
 
 require Exporter;
@@ -740,6 +740,42 @@ you can get its NFC/NFKC string, by saying
     $NFC_string  = compose($NFD_string);
     $NFKC_string = compose($NFKD_string);
 
+=item C<($processed, $unprocessed) = splitOnLastStarter($normalized)>
+
+It returns two strings: the first one, C<$processed>, is a part
+before the last starter, and the second one, C<$unprocessed> is
+another part after the first part. A starter is a character having
+a combining class of zero (see UAX #15).
+
+Note that C<$processed> may be empty (when C<$normalized> contains no
+starter or starts with the last starter), and then C<$unprocessed>
+should be equal to the entire C<$normalized>.
+
+When you have a C<$normalized> string and an C<$unnormalized> string
+following it, a simple concatenation
+   C<$concat = $normalized . normalize($form, $unnormalized)>
+is wrong. Instead of it, do like this:
+
+    ($processed, $unprocessed) = splitOnLastStarter($normalized);
+     $concat = $processed . normalize($form, $unprocessed.$unnormalized);
+
+C<splitOnLastStarter> should be called with a pre-normalized parameter
+C<$normalized>, that is in the same form as C<$form> you want.
+
+If you have an array of C<@string> that should be concatenated and then
+normalized, instead of C<$result eq normalize($form, join('', @string))>
+you can do like this:
+
+    my $result = "";
+    my $unproc = "";
+    foreach my $str (@string) {
+        my $n = normalize($form, $unproc.$str);
+        my($p, $u) = splitOnLastStarter($n);
+        $result .= $p;
+        $unproc  = $u;
+    }
+    $result .= $unproc; # here it is.
+
 =back
 
 =head2 Quick Check
@@ -822,15 +858,15 @@ while C<"B\N{COMBINING ACUTE ACCENT}"> is in NFC.
 If you want to check exactly, compare the string with its NFC/NFKC/FCC.
 
     if ($string eq NFC($string)) {
-	# $string is exactly normalized in NFC;
+        # $string is exactly normalized in NFC;
     } else {
-	# $string is not normalized in NFC;
+        # $string is not normalized in NFC;
     }
 
     if ($string eq NFKC($string)) {
-	# $string is exactly normalized in NFKC;
+        # $string is exactly normalized in NFKC;
     } else {
-	# $string is not normalized in NFKC;
+        # $string is not normalized in NFKC;
     }
 
 =head2 Character Data
@@ -955,7 +991,7 @@ normalization implemented by this module depends on your perl's version.
      5.8.4-5.8.6          4.0.1 (normalization is same as 4.0.0)
      5.8.7-5.8.8          4.1.0
        5.10.0             5.0.0
-       5.8.9              5.1.0
+     5.8.9, 5.10.1        5.1.0
 
 =item Correction of decomposition mapping
 
@@ -983,7 +1019,7 @@ lower than 4.1.0.
 
 SADAHIRO Tomoyuki <SADAHIRO@cpan.org>
 
-Copyright(C) 2001-2007, SADAHIRO Tomoyuki. Japan. All rights reserved.
+Copyright(C) 2001-2009, SADAHIRO Tomoyuki. Japan. All rights reserved.
 
 This module is free software; you can redistribute it
 and/or modify it under the same terms as Perl itself.
