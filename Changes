@@ -1,5 +1,10 @@
 Revision history for Perl extension Unicode::Normalize.
 
+1.05  Mon Sep 28 21:43:17 2009
+    - normalize_partial() and NFX_partial(). { NFX =~ /^NFK?[CD]\z/ }
+    - added partial1.t for NFX_partial().
+    - added partial2.t for normalize_partial().
+
 1.04  Wed Sep 23 22:32:57 2009
     - doc: splitOnLastStarter() since 0.24 is now documented.
     - test: some new tests are added to split.t.

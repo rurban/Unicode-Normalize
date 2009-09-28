@@ -16,6 +16,8 @@ t/func.t
 t/illegal.t
 t/norm.t
 t/null.t
+t/partial1.t
+t/partial2.t
 t/proto.t
 t/split.t
 t/test.t
