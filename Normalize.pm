@@ -13,7 +13,7 @@ use Carp;
 
 no warnings 'utf8';
 
-our $VERSION = '1.05';
+our $VERSION = '1.06';
 our $PACKAGE = __PACKAGE__;
 
 our @EXPORT = qw( NFC NFD NFKC NFKD );
@@ -575,7 +575,7 @@ lower than 4.1.0.
 
 SADAHIRO Tomoyuki <SADAHIRO@cpan.org>
 
-Copyright(C) 2001-2009, SADAHIRO Tomoyuki. Japan. All rights reserved.
+Copyright(C) 2001-2010, SADAHIRO Tomoyuki. Japan. All rights reserved.
 
 This module is free software; you can redistribute it
 and/or modify it under the same terms as Perl itself.

@@ -1,5 +1,9 @@
 Revision history for Perl extension Unicode::Normalize.
 
+1.06  Thu Feb 11 16:19:54 2010
+    - Pure Perl/mkheader: fixed the internal _getHexArray() for perl 5.11.3
+      changes (Bug #53197).
+
 1.05  Mon Sep 28 21:43:17 2009
     - normalize_partial() and NFX_partial(). { NFX =~ /^NFK?[CD]\z/ }
     - added partial1.t for NFX_partial().

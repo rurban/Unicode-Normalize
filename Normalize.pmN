@@ -13,7 +13,7 @@ use Carp;
 
 no warnings 'utf8';
 
-our $VERSION = '1.05';
+our $VERSION = '1.06';
 our $PACKAGE = __PACKAGE__;
 
 our @EXPORT = qw( NFC NFD NFKC NFKD );
@@ -52,6 +52,26 @@ require Exporter;
 our @ISA = qw(Exporter);
 use File::Spec;
 
+##### The below part is common to mkheader and PP #####
+
+our %Combin;	# $codepoint => $number    : combination class
+our %Canon;	# $codepoint => \@codepoints : canonical decomp.
+our %Compat;	# $codepoint => \@codepoints : compat. decomp.
+our %Compos;	# $1st,$2nd  => $codepoint : composite
+our %Exclus;	# $codepoint => 1          : composition exclusions
+our %Single;	# $codepoint => 1          : singletons
+our %NonStD;	# $codepoint => 1          : non-starter decompositions
+our %Comp2nd;	# $codepoint => 1          : may be composed with a prev char.
+
+# from Unicode database
+our $Combin = do "unicore/CombiningClass.pl"
+    || do "unicode/CombiningClass.pl"
+    || croak "$PACKAGE: CombiningClass.pl not found";
+our $Decomp = do "unicore/Decomposition.pl"
+    || do "unicode/Decomposition.pl"
+    || croak "$PACKAGE: Decomposition.pl not found";
+
+# definition of Hangul constants
 use constant SBase  => 0xAC00;
 use constant SFinal => 0xD7A3; # SBase -1 + SCount
 use constant SCount =>  11172; # LCount * NCount
@@ -66,24 +86,20 @@ use constant TBase  => 0x11A7;
 use constant TFinal => 0x11C2;
 use constant TCount =>     28;
 
-our $Combin = do "unicore/CombiningClass.pl"
-    || do "unicode/CombiningClass.pl"
-    || croak("$PACKAGE: CombiningClass.pl not found");
+sub decomposeHangul {
+    my $sindex = $_[0] - SBase;
+    my $lindex = int( $sindex / NCount);
+    my $vindex = int(($sindex % NCount) / TCount);
+    my $tindex =      $sindex % TCount;
+    my @ret = (
+       LBase + $lindex,
+       VBase + $vindex,
+      $tindex ? (TBase + $tindex) : (),
+    );
+    return wantarray ? @ret : pack_U(@ret);
+}
 
-our $Decomp = do "unicore/Decomposition.pl"
-    || do "unicode/Decomposition.pl"
-    || croak("$PACKAGE: Decomposition.pl not found");
-
-our %Combin;	# $codepoint => $number    : combination class
-our %Canon;	# $codepoint => \@codepoints : canonical decomp.
-our %Compat;	# $codepoint => \@codepoints : compat. decomp.
-our %Exclus;	# $codepoint => 1          : composition exclusions
-our %Single;	# $codepoint => 1          : singletons
-our %NonStD;	# $codepoint => 1          : non-starter decompositions
-
-our %Comp2nd;	# $codepoint => 1          : may be composed with a prev char.
-our %Compos;	# $1st,$2nd  => $codepoint : composite
-
+########## getting full decomposion ##########
 {
     my($f, $fh);
     foreach my $d (@INC) {
@@ -95,7 +111,8 @@ our %Compos;	# $1st,$2nd  => $codepoint : composite
 	last if open($fh, $f);
 	$f = undef;
     }
-    croak("$PACKAGE: CompExcl.txt not found in @INC") unless defined $f;
+    croak "$PACKAGE: neither unicore/CompositionExclusions.txt "
+	. "nor unicode/CompExcl.txt is found in @INC" unless defined $f;
 
     while (<$fh>) {
 	next if /^#/ or /^$/;
@@ -105,21 +122,17 @@ our %Compos;	# $1st,$2nd  => $codepoint : composite
     close $fh;
 }
 
-##
 ## converts string "hhhh hhhh hhhh" to a numeric list
-##
-sub _getHexArray { map hex, $_[0] =~ /([0-9A-Fa-f]+)/g }
-
-
-######
+## (hex digits separated by spaces)
+sub _getHexArray { map hex, $_[0] =~ /\G *([0-9A-Fa-f]+)/g }
 
 while ($Combin =~ /(.+)/g) {
     my @tab = split /\t/, $1;
     my $ini = hex $tab[0];
     if ($tab[1] eq '') {
-	$Combin{ $ini } = $tab[2];
+	$Combin{$ini} = $tab[2];
     } else {
-	$Combin{ $_ } = $tab[2] foreach $ini .. hex($tab[1]);
+	$Combin{$_} = $tab[2] foreach $ini .. hex($tab[1]);
     }
 }
 
@@ -128,45 +141,26 @@ while ($Decomp =~ /(.+)/g) {
     my $compat = $tab[2] =~ s/<[^>]+>//;
     my $dec = [ _getHexArray($tab[2]) ]; # decomposition
     my $ini = hex($tab[0]); # initial decomposable character
+    my $end = $tab[1] eq '' ? $ini : hex($tab[1]);
+    # ($ini .. $end) is the range of decomposable characters.
 
-    if ($tab[1] eq '') {
-	$Compat{ $ini } = $dec;
+    foreach my $u ($ini .. $end) {
+	$Compat{$u} = $dec;
 
 	if (! $compat) {
-	    $Canon{ $ini } = $dec;
+	    $Canon{$u} = $dec;
 
 	    if (@$dec == 2) {
 		if ($Combin{ $dec->[0] }) {
-		    $NonStD{ $ini } = 1;
+		    $NonStD{$u} = 1;
 		} else {
-		    $Compos{ $dec->[0] }{ $dec->[1] } = $ini;
-		    $Comp2nd{ $dec->[1] } = 1 if ! $Exclus{$ini};
+		    $Compos{ $dec->[0] }{ $dec->[1] } = $u;
+		    $Comp2nd{ $dec->[1] } = 1 if ! $Exclus{$u};
 		}
 	    } elsif (@$dec == 1) {
-		$Single{ $ini } = 1;
+		$Single{$u} = 1;
 	    } else {
 		croak("Weird Canonical Decomposition of U+$tab[0]");
-	    }
-	}
-    } else {
-	foreach my $u ($ini .. hex($tab[1])) {
-	    $Compat{ $u } = $dec;
-
-	    if (! $compat) {
-		$Canon{ $u } = $dec;
-
-		if (@$dec == 2) {
-		    if ($Combin{ $dec->[0] }) {
-			$NonStD{ $u } = 1;
-		    } else {
-			$Compos{ $dec->[0] }{ $dec->[1] } = $u;
-			$Comp2nd{ $dec->[1] } = 1 if ! $Exclus{$u};
-		    }
-		} elsif (@$dec == 1) {
-		    $Single{ $u } = 1;
-		} else {
-		    croak("Weird Canonical Decomposition of U+$tab[0]");
-		}
 	    }
 	}
     }
@@ -189,7 +183,7 @@ sub getCanonList {
 
 sub getCompatList {
     my @src = @_;
-    my @dec =  map {
+    my @dec = map {
 	(SBase <= $_ && $_ <= SFinal) ? decomposeHangul($_)
 	    : $Compat{$_} ? @{ $Compat{$_} } : $_
 		} @src;
@@ -207,7 +201,7 @@ foreach my $key (keys %Compat) {
     $Compat{$key} = [ getCompatList($key) ];
 }
 
-######
+##### The above part is common to mkheader and PP #####
 
 sub getHangulComposite ($$) {
     if ((LBase <= $_[0] && $_[0] <= LFinal)
@@ -221,19 +215,6 @@ sub getHangulComposite ($$) {
 	return($_[0] + $_[1] - TBase);
     }
     return undef;
-}
-
-sub decomposeHangul {
-    my $sindex = $_[0] - SBase;
-    my $lindex = int( $sindex / NCount);
-    my $vindex = int(($sindex % NCount) / TCount);
-    my $tindex =      $sindex % TCount;
-    my @ret = (
-       LBase + $lindex,
-       VBase + $vindex,
-      $tindex ? (TBase + $tindex) : (),
-    );
-    wantarray ? @ret : pack_U(@ret);
 }
 
 ##########
@@ -1086,7 +1067,7 @@ lower than 4.1.0.
 
 SADAHIRO Tomoyuki <SADAHIRO@cpan.org>
 
-Copyright(C) 2001-2009, SADAHIRO Tomoyuki. Japan. All rights reserved.
+Copyright(C) 2001-2010, SADAHIRO Tomoyuki. Japan. All rights reserved.
 
 This module is free software; you can redistribute it
 and/or modify it under the same terms as Perl itself.
