@@ -13,7 +13,7 @@ use Carp;
 
 no warnings 'utf8';
 
-our $VERSION = '1.10';
+our $VERSION = '1.11';
 our $PACKAGE = __PACKAGE__;
 
 our @EXPORT = qw( NFC NFD NFKC NFKD );
@@ -52,6 +52,10 @@ require Exporter;
 our @ISA = qw(Exporter);
 use File::Spec;
 
+my $File_CompExcl = File::Spec->catfile(
+    File::Spec->curdir(), 'Unicode', 'Normalize', 'CompExcl.pl'
+);
+
 ##### The below part is common to mkheader and PP #####
 
 our %Combin;	# $codepoint => $number    : combination class
@@ -63,13 +67,17 @@ our %Single;	# $codepoint => 1          : singletons
 our %NonStD;	# $codepoint => 1          : non-starter decompositions
 our %Comp2nd;	# $codepoint => 1          : may be composed with a prev char.
 
-# from Unicode database
+# from core Unicode database
 our $Combin = do "unicore/CombiningClass.pl"
     || do "unicode/CombiningClass.pl"
     || croak "$PACKAGE: CombiningClass.pl not found";
 our $Decomp = do "unicore/Decomposition.pl"
     || do "unicode/Decomposition.pl"
     || croak "$PACKAGE: Decomposition.pl not found";
+
+# from self Unicode database
+our $CompEx = do $File_CompExcl
+    || croak "$PACKAGE: CompExcl.pl not found";
 
 # definition of Hangul constants
 use constant SBase  => 0xAC00;
@@ -100,27 +108,6 @@ sub decomposeHangul {
 }
 
 ########## getting full decomposition ##########
-{
-    my($f, $fh);
-    foreach my $d (@INC) {
-	$f = File::Spec->catfile($d, "unicore", "CompositionExclusions.txt");
-	last if open($fh, $f);
-	$f = File::Spec->catfile($d, "unicore", "CompExcl.txt");
-	last if open($fh, $f);
-	$f = File::Spec->catfile($d, "unicode", "CompExcl.txt");
-	last if open($fh, $f);
-	$f = undef;
-    }
-    croak "$PACKAGE: neither unicore/CompositionExclusions.txt "
-	. "nor unicode/CompExcl.txt is found in @INC" unless defined $f;
-
-    while (<$fh>) {
-	next if /^#/ or /^$/;
-	s/#.*//;
-	$Exclus{ hex($1) } = 1 if /([0-9A-Fa-f]+)/;
-    }
-    close $fh;
-}
 
 ## converts string "hhhh hhhh hhhh" to a numeric list
 ## (hex digits separated by spaces)
@@ -146,23 +133,36 @@ while ($Decomp =~ /(.+)/g) {
 
     foreach my $u ($ini .. $end) {
 	$Compat{$u} = $dec;
+	$Canon{$u} = $dec if ! $compat;
+    }
+}
 
-	if (! $compat) {
-	    $Canon{$u} = $dec;
+while ($CompEx =~ /(.+)/g) {
+    my $s = $1;
+    next if $s =~ /^#/;
+    $s =~ s/#.*//;
+    foreach my $u (_getHexArray($s)) {
+	next if !$Canon{$u}; # not assigned
+	next if $u == 0xFB1D && !$Canon{0x1D15E}; # 3.0.1 before Corrigendum #2
+	$Exclus{$u} = 1;
+    }
+}
 
-	    if (@$dec == 2) {
-		if ($Combin{ $dec->[0] }) {
-		    $NonStD{$u} = 1;
-		} else {
-		    $Compos{ $dec->[0] }{ $dec->[1] } = $u;
-		    $Comp2nd{ $dec->[1] } = 1 if ! $Exclus{$u};
-		}
-	    } elsif (@$dec == 1) {
-		$Single{$u} = 1;
-	    } else {
-		croak("Weird Canonical Decomposition of U+$tab[0]");
-	    }
+foreach my $u (keys %Canon) {
+    my $dec = $Canon{$u};
+
+    if (@$dec == 2) {
+	if ($Combin{ $dec->[0] }) {
+	    $NonStD{$u} = 1;
+	} else {
+	    $Compos{ $dec->[0] }{ $dec->[1] } = $u;
+	    $Comp2nd{ $dec->[1] } = 1 if ! $Exclus{$u};
 	}
+    } elsif (@$dec == 1) {
+	$Single{$u} = 1;
+    } else {
+	my $h = sprintf '%04X', $u;
+	croak("Weird Canonical Decomposition of U+$h");
     }
 }
 
@@ -1040,8 +1040,8 @@ normalization implemented by this module depends on your perl's version.
      5.8.7-5.8.8          4.1.0
        5.10.0             5.0.0
     5.8.9, 5.10.1         5.1.0
-    5.12.0-5.12.2         5.2.0
-   (5.13.7-5.13.8)        6.0.0
+    5.12.0-5.12.3         5.2.0
+       5.14.0             6.0.0
 
 =item Correction of decomposition mapping
 

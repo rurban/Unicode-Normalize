@@ -1,5 +1,10 @@
 Revision history for Perl extension Unicode::Normalize.
 
+1.11  Sun May 15 20:31:09 2011
+    - As perl 5.14.0 has removed unicore/CompositionExclusions.txt
+      in the installation, Normalize/CompExcl.pl in this distribution
+      is used instead.
+
 1.10  Sun Jan 16 21:00:34 2011
     - XSUB: reorder() and compose() treat with growing the string.
     - XSUB: provision against UTF8_ALLOW_* flags to be undefined in future.

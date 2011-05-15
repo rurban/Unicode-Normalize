@@ -1,20 +1,27 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Unicode-Normalize
-version:      1.07
-version_from: Normalize.pm
-installdirs:  perl
-requires:
-    bytes:                         0
-    Carp:                          0
-    constant:                      0
-    DynaLoader:                    0
-    Exporter:                      0
-    File::Copy:                    0
-    File::Spec:                    0
-    strict:                        0
-    Test:                          0
-    warnings:                      0
-
+---
+name: Unicode-Normalize
+abstract: Unicode Normalization Forms
+version: 1.11
+author: SADAHIRO Tomoyuki <SADAHIRO@cpan.org>
+license: perl
 distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.17
+requires:
+  Carp: 0
+  DynaLoader: 0
+  Exporter: 0
+  File::Copy: 0
+  File::Spec: 0
+  Test: 0
+  bytes: 0
+  constant: 0
+  strict: 0
+  warnings: 0
+build_requires:
+  ExtUtils::MakeMaker: 0
+configure_requires:
+  ExtUtils::MakeMaker: 0
+dynamic_config: 0
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+generated_by: 'ExtUtils::MakeMaker version 6.57_05'

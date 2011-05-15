@@ -9,6 +9,7 @@ mkheader	perl script to make C header files for XSUB
 Normalize.pm	perl module for XSUB
 Normalize.pmN	# perl module for NoXSUB (pure perl)
 Normalize.xs	extension for XSUB
+Normalize/CompExcl.pl	extract from CompositionExclusions.txt
 README		# README
 t/fcdc.t
 t/form.t
