@@ -1,4 +1,4 @@
-Unicode/Normalize version 1.11
+Unicode/Normalize version 1.12
 ===================================
 
 Unicode::Normalize - Unicode Normalization Forms
@@ -77,10 +77,6 @@ In the case of pure perl:
 
 (2) Normalize.pmN (a pure perl module) may work without any other file
     in this distribution.  It must be renamed Normalize.pm, though.
-
-(3) Since Unicode::Normalize 1.11, Normalize/CompExcl.pl in this
-    distribution is used instead of unicore/CompositionExclusions.txt
-   (or unicode/CompExcl.txt).
 
 COPYRIGHT AND LICENSE
 

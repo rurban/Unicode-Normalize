@@ -1,7 +1,7 @@
 ---
 name: Unicode-Normalize
 abstract: Unicode Normalization Forms
-version: 1.11
+version: 1.12
 author: SADAHIRO Tomoyuki <SADAHIRO@cpan.org>
 license: perl
 distribution_type: module
