@@ -1,27 +1,31 @@
----
-name: Unicode-Normalize
-abstract: Unicode Normalization Forms
-version: 1.12
-author: SADAHIRO Tomoyuki <SADAHIRO@cpan.org>
-license: perl
-distribution_type: module
-requires:
-  Carp: 0
-  DynaLoader: 0
-  Exporter: 0
-  File::Copy: 0
-  File::Spec: 0
-  Test: 0
-  bytes: 0
-  constant: 0
-  strict: 0
-  warnings: 0
-build_requires:
-  ExtUtils::MakeMaker: 0
+--- #YAML:1.0
+name:               Unicode-Normalize
+version:            1.13
+abstract:           Unicode Normalization Forms
+author:
+    - SADAHIRO Tomoyuki <SADAHIRO@cpan.org>
+license:            perl
+distribution_type:  module
 configure_requires:
-  ExtUtils::MakeMaker: 0
-dynamic_config: 0
+    ExtUtils::MakeMaker:  0
+build_requires:
+    ExtUtils::MakeMaker:  0
+requires:
+    bytes:       0
+    Carp:        0
+    constant:    0
+    DynaLoader:  0
+    Exporter:    0
+    File::Copy:  0
+    File::Spec:  0
+    strict:      0
+    Test:        0
+    warnings:    0
+no_index:
+    directory:
+        - t
+        - inc
+generated_by:       ExtUtils::MakeMaker version 6.57_05
 meta-spec:
-  url: http://module-build.sourceforge.net/META-spec-v1.4.html
-  version: 1.4
-generated_by: 'ExtUtils::MakeMaker version 6.57_05'
+    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
+    version:  1.4
