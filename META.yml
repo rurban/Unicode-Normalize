@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Unicode-Normalize
-version:            1.13
+version:            1.14
 abstract:           Unicode Normalization Forms
 author:
     - SADAHIRO Tomoyuki <SADAHIRO@cpan.org>
@@ -19,7 +19,6 @@ requires:
     File::Copy:  0
     File::Spec:  0
     strict:      0
-    Test:        0
     warnings:    0
 no_index:
     directory:
