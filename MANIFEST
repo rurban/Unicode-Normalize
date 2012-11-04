@@ -4,6 +4,7 @@ enableXS	# perl script to enable XSUB
 Makefile.PL
 MANIFEST	MANIFEST for XSUB
 MANIFEST.N	# MANIFEST for NoXSUB (pure perl)
+META.json	# meta file
 META.yml	# meta file
 mkheader	perl script to make C header files for XSUB
 Normalize.pm	perl module for XSUB
