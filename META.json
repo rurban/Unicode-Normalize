@@ -4,7 +4,7 @@
       "SADAHIRO Tomoyuki <SADAHIRO@cpan.org>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.120921",
+   "generated_by" : "ExtUtils::MakeMaker version 6.8, CPAN::Meta::Converter version 2.132830",
    "license" : [
       "perl_5"
    ],
@@ -33,7 +33,6 @@
       "runtime" : {
          "requires" : {
             "Carp" : "0",
-            "DynaLoader" : "0",
             "Exporter" : "0",
             "File::Copy" : "0",
             "File::Spec" : "0",
@@ -45,5 +44,5 @@
       }
    },
    "release_status" : "stable",
-   "version" : "1.17"
+   "version" : "1.18"
 }

@@ -1,5 +1,10 @@
 Revision history for Perl extension Unicode::Normalize.
 
+1.18  Tue May 27 22:04:23 2014
+    - XSUB is now deprecated and removed. see perl 5.20.0,
+      perldelta, Internal Changes, deprecation of uvuni_to_utf8 etc.
+    - Thank you for everything !!
+
 1.17  Sat Oct  5 11:36:43 2013
     - assertion using unpack
 
