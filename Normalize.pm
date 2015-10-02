@@ -53,6 +53,21 @@ sub unpack_U {
     return unpack('U*', shift(@_).pack('U*'));
 }
 
+BEGIN {
+    # Starting in v5.20, the tables in lib/unicore are built using the
+    # platform's native character set for code points 0-255.  Things like the
+    # combining class and compositions exclusions are all above 255, so it
+    # doesn't matter for them.
+
+    *pack_unicore = ($] ge 5.020)
+                    ? sub { return pack('W*', @_); }
+                    : \&pack_U;
+
+    *unpack_unicore = ($] ge 5.020)
+                      ? sub { return unpack('W*', $_[0]); }
+                      : \&unpack_U;
+}
+
 require Exporter;
 
 our @ISA = qw(Exporter);
@@ -113,7 +128,7 @@ sub decomposeHangul {
        VBase + $vindex,
       $tindex ? (TBase + $tindex) : (),
     );
-    return wantarray ? @ret : pack_U(@ret);
+    return wantarray ? @ret : pack_unicore(@ret);
 }
 
 ########## getting full decomposition ##########
@@ -230,7 +245,7 @@ sub getCombinClass ($) {
 sub getCanon ($) {
     my $uv = 0 + shift;
     return exists $Canon{$uv}
-	? pack_U(@{ $Canon{$uv} })
+	? pack_unicore(@{ $Canon{$uv} })
 	: (SBase <= $uv && $uv <= SFinal)
 	    ? scalar decomposeHangul($uv)
 	    : undef;
@@ -239,7 +254,7 @@ sub getCanon ($) {
 sub getCompat ($) {
     my $uv = 0 + shift;
     return exists $Compat{$uv}
-	? pack_U(@{ $Compat{$uv} })
+	? pack_unicore(@{ $Compat{$uv} })
 	: (SBase <= $uv && $uv <= SFinal)
 	    ? scalar decomposeHangul($uv)
 	    : undef;
@@ -317,10 +332,10 @@ sub isNFKC_NO ($) {
 sub decompose ($;$)
 {
     my $hash = $_[1] ? \%Compat : \%Canon;
-    return pack_U map {
+    return pack_unicore map {
 	$hash->{ $_ } ? @{ $hash->{ $_ } } :
 	    (SBase <= $_ && $_ <= SFinal) ? decomposeHangul($_) : $_
-    } unpack_U($_[0]);
+        } unpack_unicore($_[0]);
 }
 
 ##
@@ -328,7 +343,7 @@ sub decompose ($;$)
 ##
 sub reorder ($)
 {
-    my @src = unpack_U($_[0]);
+    my @src = unpack_unicore($_[0]);
 
     for (my $i=0; $i < @src;) {
 	$i++, next if ! $Combin{ $src[$i] };
@@ -342,7 +357,7 @@ sub reorder ($)
 
 	@src[ $ini .. $i - 1 ] = @src[ @tmp ];
     }
-    return pack_U(@src);
+    return pack_unicore(@src);
 }
 
 
@@ -357,7 +372,7 @@ sub reorder ($)
 ##
 sub compose ($)
 {
-    my @src = unpack_U($_[0]);
+    my @src = unpack_unicore($_[0]);
 
     for (my $s = 0; $s+1 < @src; $s++) {
 	next unless defined $src[$s] && ! $Combin{ $src[$s] };
@@ -384,7 +399,7 @@ sub compose ($)
 	    if ($blocked) { $blocked = 0 } else { -- $uncomposed_cc }
 	}
     }
-    return pack_U(grep defined, @src);
+    return pack_unicore(grep defined, @src);
 }
 
 
@@ -393,7 +408,7 @@ sub compose ($)
 ##
 sub composeContiguous ($)
 {
-    my @src = unpack_U($_[0]);
+    my @src = unpack_unicore($_[0]);
 
     for (my $s = 0; $s+1 < @src; $s++) {
 	next unless defined $src[$s] && ! $Combin{ $src[$s] };
@@ -409,7 +424,7 @@ sub composeContiguous ($)
 	    $src[$s] = $c; $src[$j] = undef;
 	}
     }
-    return pack_U(grep defined, @src);
+    return pack_unicore(grep defined, @src);
 }
 
 
@@ -433,7 +448,7 @@ sub checkNFD ($)
 {
     my $preCC = 0;
     my $curCC;
-    for my $uv (unpack_U($_[0])) {
+    for my $uv (unpack_unicore($_[0])) {
 	$curCC = $Combin{ $uv } || 0;
 	return '' if $preCC > $curCC && $curCC != 0;
 	return '' if exists $Canon{$uv} || (SBase <= $uv && $uv <= SFinal);
@@ -446,7 +461,7 @@ sub checkNFKD ($)
 {
     my $preCC = 0;
     my $curCC;
-    for my $uv (unpack_U($_[0])) {
+    for my $uv (unpack_unicore($_[0])) {
 	$curCC = $Combin{ $uv } || 0;
 	return '' if $preCC > $curCC && $curCC != 0;
 	return '' if exists $Compat{$uv} || (SBase <= $uv && $uv <= SFinal);
@@ -459,7 +474,7 @@ sub checkNFC ($)
 {
     my $preCC = 0;
     my($curCC, $isMAYBE);
-    for my $uv (unpack_U($_[0])) {
+    for my $uv (unpack_unicore($_[0])) {
 	$curCC = $Combin{ $uv } || 0;
 	return '' if $preCC > $curCC && $curCC != 0;
 
@@ -477,7 +492,7 @@ sub checkNFKC ($)
 {
     my $preCC = 0;
     my($curCC, $isMAYBE);
-    for my $uv (unpack_U($_[0])) {
+    for my $uv (unpack_unicore($_[0])) {
 	$curCC = $Combin{ $uv } || 0;
 	return '' if $preCC > $curCC && $curCC != 0;
 
@@ -495,7 +510,7 @@ sub checkFCD ($)
 {
     my $preCC = 0;
     my $curCC;
-    for my $uv (unpack_U($_[0])) {
+    for my $uv (unpack_unicore($_[0])) {
 	# Hangul syllable need not decomposed since cc[any Jamo] == 0;
 	my @uvCan = exists $Canon{$uv} ? @{ $Canon{$uv} } : ($uv);
 
@@ -510,7 +525,7 @@ sub checkFCC ($)
 {
     my $preCC = 0;
     my($curCC, $isMAYBE);
-    for my $uv (unpack_U($_[0])) {
+    for my $uv (unpack_unicore($_[0])) {
 	# Hangul syllable need not decomposed since cc[any Jamo] == 0;
 	my @uvCan = exists $Canon{$uv} ? @{ $Canon{$uv} } : ($uv);
 
@@ -534,7 +549,7 @@ sub checkFCC ($)
 
 sub splitOnLastStarter
 {
-    my $str = pack_U(unpack_U(shift));
+    my $str = pack_unicore(unpack_unicore(shift));
     if ($str eq '') {
 	return ('', '');
     }
@@ -544,7 +559,9 @@ sub splitOnLastStarter
     do {
 	$ch = chop($str);
 	$unproc = $ch.$unproc;
-    } while (getCombinClass(unpack 'U', $ch) && $str ne "");
+    } # Relies on the fact that the combining class for code points < 256 is
+      # 0, so don't have to worry about EBCDIC issues
+      while (getCombinClass(unpack 'U', $ch) && $str ne "");
     return ($str, $unproc);
 }
 

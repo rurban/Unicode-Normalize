@@ -1,5 +1,9 @@
 Revision history for Perl extension Unicode::Normalize.
 
+1.21  Fri Oct 02 15:33:17 2015
+    - Get pure perl version to work on modern EBCDIC perls.
+    - Some comment and pod improvements
+
 1.20  Fri Oct 02 15:30:40 2015
     - Not officially released, was incomplete import of 1.19 
 
