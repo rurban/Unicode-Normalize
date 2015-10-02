@@ -1,5 +1,8 @@
 Revision history for Perl extension Unicode::Normalize.
 
+1.19  Sat Jul 11 12:39:38 2015
+    - [rt.cpan.org #105620] Useless dependency on bytes and File::Copy
+
 1.18  Tue May 27 22:04:23 2014
     - XSUB is now deprecated and removed. see perl 5.20.0,
       perldelta, Internal Changes, deprecation of uvuni_to_utf8 etc.

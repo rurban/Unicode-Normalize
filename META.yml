@@ -3,27 +3,25 @@ abstract: 'Unicode Normalization Forms'
 author:
   - 'SADAHIRO Tomoyuki <SADAHIRO@cpan.org>'
 build_requires:
-  ExtUtils::MakeMaker: 0
+  ExtUtils::MakeMaker: '0'
 configure_requires:
-  ExtUtils::MakeMaker: 0
+  ExtUtils::MakeMaker: '0'
 dynamic_config: 1
-generated_by: 'ExtUtils::MakeMaker version 6.8, CPAN::Meta::Converter version 2.132830'
+generated_by: 'ExtUtils::MakeMaker version 6.98, CPAN::Meta::Converter version 2.140640'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
-  version: 1.4
+  version: '1.4'
 name: Unicode-Normalize
 no_index:
   directory:
     - t
     - inc
 requires:
-  Carp: 0
-  Exporter: 0
-  File::Copy: 0
-  File::Spec: 0
-  bytes: 0
-  constant: 0
-  strict: 0
-  warnings: 0
-version: 1.18
+  Carp: '0'
+  Exporter: '0'
+  File::Spec: '0'
+  constant: '0'
+  strict: '0'
+  warnings: '0'
+version: '1.19'
