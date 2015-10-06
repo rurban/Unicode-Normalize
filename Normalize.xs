@@ -20,15 +20,24 @@
 #include "unfcmp.h"
 #include "unfexc.h"
 
-/* Perl 5.6.1 ? */
-#ifndef uvchr_to_utf8
-#define uvchr_to_utf8   uv_to_utf8
-#endif /* uvchr_to_utf8 */
+/* The generated normalization tables since v5.20 are in native character set
+ * terms.  Prior to that, they were in Unicode terms.  So we use 'uvchr' for
+ * later perls, and redefine that to be 'uvuni' for earlier ones */
+#if PERL_VERSION < 20
+#   undef uvchr_to_utf8
+#   ifdef uvuni_to_utf8
+#       define uvchr_to_utf8   uvuni_to_utf8
+#   else /* Perl 5.6.1 */
+#       define uvchr_to_utf8   uv_to_utf8
+#   endif
 
-/* Perl 5.6.1 ? */
-#ifndef utf8n_to_uvchr
-#define utf8n_to_uvchr   utf8_to_uv
-#endif /* utf8n_to_uvchr */
+#   undef utf8n_to_uvchr
+#   ifdef utf8n_to_uvuni
+#       define utf8n_to_uvchr   utf8n_to_uvuni
+#   else /* Perl 5.6.1 */
+#       define utf8n_to_uvchr   utf8_to_uv
+#   endif
+#endif
 
 /* UTF8_ALLOW_BOM is used before Perl 5.8.0 */
 #ifndef UTF8_ALLOW_BOM
