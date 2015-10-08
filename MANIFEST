@@ -2,8 +2,6 @@ Changes		# Changes
 LICENSE
 Makefile.PL
 MANIFEST	MANIFEST for pure perl
-META.json	# meta file
-META.yml	# meta file
 Normalize.pm	perl module for pure perl
 README		# README
 t/fcdc.t
