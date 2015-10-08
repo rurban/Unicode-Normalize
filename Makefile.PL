@@ -3,6 +3,8 @@ use ExtUtils::MakeMaker;
 
 my $clean = {};
 
+my $mm_ver = ExtUtils::MakeMaker->VERSION;
+
 if (-f "Normalize.xs") {
     print STDERR "Making header files for XS...\n";
 
@@ -12,7 +14,10 @@ if (-f "Normalize.xs") {
 }
 
 WriteMakefile(
-    'AUTHOR'            => 'SADAHIRO Tomoyuki <SADAHIRO@cpan.org>',
+    'AUTHOR'            => [
+                             'SADAHIRO Tomoyuki <SADAHIRO@cpan.org>',
+                             'Karl Williamson <khw@cpan.org>',
+                           ],
     'ABSTRACT'          => 'Unicode Normalization Forms',
     'INSTALLDIRS'       => ($] >= 5.007002 && $] < 5.011) ? 'perl' : 'site',
                             # see perl5110delta, @INC reorganization
@@ -29,4 +34,17 @@ WriteMakefile(
         strict          => 0,
         warnings        => 0,
     },
+    ($mm_ver < 6.46 ? () : (META_MERGE => {
+        'meta-spec' => { version => 2 },
+        resources       => {
+            repository    => {
+                url  => 'https://github.com/khwilliamson/Unicode-Normalize.git',
+                web  => 'https://github.com/khwilliamson/Unicode-Normalize',
+                type => 'git',
+            },
+            bugtracker    => {
+                web  => 'https://rt.cpan.org/Public/Dist/Display.html?Name=Unicode-Normalize',
+            },
+        },
+    })),
 );
