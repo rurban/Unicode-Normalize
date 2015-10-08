@@ -25,6 +25,7 @@ WriteMakefile(
     'NAME'              => 'Unicode::Normalize',
     'VERSION_FROM'      => 'Normalize.pm', # finds $VERSION
     'clean'             => $clean,
+    'depend'            => { 'Normalize.o' => '$(H_FILES)' },
     'PREREQ_PM'         => {
         Carp            => 0,
         constant        => 0,
