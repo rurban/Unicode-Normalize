@@ -1,4 +1,5 @@
 Changes		# Changes
+LICENSE
 Makefile.PL
 MANIFEST	MANIFEST for pure perl
 META.json	# meta file
