@@ -1,5 +1,11 @@
 Revision history for Perl extension Unicode::Normalize.
 
+1.22  Thu Oct 08 16:50:17 2015
+    - Reinstate XSUB, now works on modern EBCDIC perls as well.
+    - Kwalitee changes
+    - Makefile fixes
+    - small bug fix in header generation script.
+
 1.21  Fri Oct 02 15:33:17 2015
     - Get pure perl version to work on modern EBCDIC perls.
     - Some comment and pod improvements
