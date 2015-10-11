@@ -2,7 +2,9 @@ Changes		# Changes
 LICENSE
 Makefile.PL
 MANIFEST	MANIFEST for pure perl
+mkheader	generate headers for xs code
 Normalize.pm	perl module for pure perl
+Normalize.xs	xs code
 README		# README
 t/fcdc.t
 t/form.t
