@@ -1,5 +1,9 @@
 Revision history for Perl extension Unicode::Normalize.
 
+1.23  Mon Oct 12 09:59:17 2015
+    - No changes except for version number from 1.22.  Done because of issues
+      with cpanplus and cpantesters
+
 1.22  Thu Oct 08 16:50:17 2015
     - Reinstate XSUB, now works on modern EBCDIC perls as well.
     - Kwalitee changes
