@@ -14,10 +14,12 @@ if (-f "Normalize.xs") {
 }
 
 WriteMakefile(
-    'AUTHOR'            => [
-                             'SADAHIRO Tomoyuki <SADAHIRO@cpan.org>',
-                             'Karl Williamson <khw@cpan.org>',
-                           ],
+    ($mm_ver < 6.58)
+    ? ('AUTHOR' => 'SADAHIRO Tomoyuki <SADAHIRO@cpan.org>, Karl Williamson <khw@cpan.org>')
+    : ('AUTHOR' =>         [
+                           'SADAHIRO Tomoyuki <SADAHIRO@cpan.org>',
+                           'Karl Williamson <khw@cpan.org>',
+                           ]),
     'ABSTRACT'          => 'Unicode Normalization Forms',
     'INSTALLDIRS'       => ($] >= 5.007002 && $] < 5.011) ? 'perl' : 'site',
                             # see perl5110delta, @INC reorganization
