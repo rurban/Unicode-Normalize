@@ -47,9 +47,8 @@ sub pack_U {
 sub unpack_U {
 
     # The empty pack returns an empty UTF-8 string, so the effect is to force
-    # the shifted parameter into being UTF-8.  This shouldn't matter; the
-    # commit messages seem to point to an attempt to get things to work in
-    # EBCDIC in 5.8.
+    # the shifted parameter into being UTF-8.  This allows this to work on
+    # Perl 5.6, where there is no utf8::upgrade().
     return unpack('U*', shift(@_).pack('U*'));
 }
 

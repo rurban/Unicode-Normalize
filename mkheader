@@ -40,14 +40,13 @@ our $structname = "${prefix}complist";
 
 # Starting in v5.20, the tables in lib/unicore are built using the platform's
 # native character set for code points 0-255.
-my $pack_format = ($] ge 5.020) ? "W" : "U";
-
-sub pack_U {
-    my $packed = pack("$pack_format*", @_);
-    utf8::upgrade $packed;
-    return $packed;
-}
-
+*pack_U = ($] ge 5.020)
+          ? sub { return pack('W*', @_).pack('U*'); } # The empty pack returns
+                                                      # an empty UTF-8 string,
+                                                      # so the effect is to
+                                                      # force the return into
+                                                      # being UTF-8.
+          : sub { return pack('U*', @_); };
 
 # %Canon and %Compat will be ($codepoint => $hexstring) after _U_stringify()
 our %Comp1st;	# $codepoint => $listname  : may be composed with a next char.
