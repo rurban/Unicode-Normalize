@@ -1,5 +1,12 @@
 Revision history for Perl extension Unicode::Normalize.
 
+1.24  Sun Nov 29 05:48:44 UTC 2015
+    - Updated to use most recent GNU license file.
+      ( https://rt.cpan.org/Public/Bug/Display.html?id=108003 )
+    - Silence compiler warning message
+      ( https://rt.cpan.org/Public/Bug/Display.html?id=109577 )
+    - Add kwalitee suggested changes.
+
 1.23  Sun Oct 25 14:50:28 UTC 2015
     - Fix mkhdr to work on releases earlier than 5.8
 
