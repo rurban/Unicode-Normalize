@@ -597,6 +597,8 @@ Currently maintained by <perl5-porters@perl.org>
 
 Copyright(C) 2001-2012, SADAHIRO Tomoyuki. Japan. All rights reserved.
 
+=head1 LICENSE
+
 This module is free software; you can redistribute it
 and/or modify it under the same terms as Perl itself.
 
