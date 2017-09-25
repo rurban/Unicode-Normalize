@@ -16,7 +16,7 @@ use Carp;
 
 no warnings 'utf8';
 
-our $VERSION = '1.24';
+our $VERSION = '1.25';
 our $PACKAGE = __PACKAGE__;
 
 our @EXPORT = qw( NFC NFD NFKC NFKD );
@@ -143,10 +143,10 @@ Unicode::Normalize - Unicode Normalization Forms
 
   use Unicode::Normalize;
 
-  $NFD_string  = NFD($string);  # Normalization Form D
-  $NFC_string  = NFC($string);  # Normalization Form C
-  $NFKD_string = NFKD($string); # Normalization Form KD
-  $NFKC_string = NFKC($string); # Normalization Form KC
+  $NFD_string  = NFD($string);  # Canonical Decomposition
+  $NFC_string  = NFC($string);  # Canonical Composition
+  $NFKD_string = NFKD($string); # Compatible Decomposition
+  $NFKC_string = NFKC($string); # Compatible Composition
 
 (2) using function names exported on request:
 
@@ -629,6 +629,10 @@ Public Review Issue #29: Normalization Issue
 =item http://www.unicode.org/notes/tn5/
 
 Canonical Equivalence in Applications - UTN #5
+
+=item https://rurban.github.io/safeclib/doc/safec-3.0/
+
+For wcsnorm_s() and wcsfc_s(). Uses the -ind -uni -utf16 options.
 
 =back
 

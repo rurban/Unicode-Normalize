@@ -1,5 +1,16 @@
 Revision history for Perl extension Unicode::Normalize.
 
+1.25  
+    - Optimized to use indirect tables, for safeclib and cperl.
+      3x smaller canon, compat and complist tables.
+      bsearch a new exception list, for the smaller special-cases.
+    - Added support to create wchar_t types for UTF-32 and UTF-16 (Windows).
+      (for safeclib)
+    - Renamed the created headers and datatypes for the 3 new formats (8, w16 or w),
+      plus indirect or not.
+    - Add many comments to the generated header files.
+    - Added -std to use stdint datatypes, instead of perl UV, U32, U16, U8
+
 1.24  Sun Nov 29 05:48:44 UTC 2015
     - Updated to use most recent GNU license file.
       ( https://rt.cpan.org/Public/Bug/Display.html?id=108003 )
