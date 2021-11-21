@@ -16,7 +16,7 @@ use Carp;
 
 no warnings 'utf8';
 
-our $VERSION = '1.25';
+our $VERSION = '1.27';
 our $PACKAGE = __PACKAGE__;
 
 our @EXPORT = qw( NFC NFD NFKC NFKD );
@@ -56,9 +56,9 @@ require Exporter;
 
 ##### The above part is common to XS and PP #####
 
-our @ISA = qw(Exporter DynaLoader);
-require DynaLoader;
-bootstrap Unicode::Normalize $VERSION;
+our @ISA = qw(Exporter);
+use XSLoader ();
+XSLoader::load( 'Unicode::Normalize', $VERSION );
 
 ##### The below part is common to XS and PP #####
 
@@ -161,7 +161,7 @@ Unicode::Normalize - Unicode Normalization Forms
 
 Parameters:
 
-C<$string> is used as a string under character semantics (see F<perlunicode>).
+C<$string> is used as a string under character semantics (see L<perlunicode>).
 
 C<$code_point> should be an unsigned integer representing a Unicode code point.
 
@@ -566,6 +566,12 @@ so one could cause Unicode 3.2 to be used in any perl version starting with
        5.18.x             6.2.0
        5.20.x             6.3.0
        5.22.x             7.0.0
+       5.24.x             8.0.0
+       5.26.x             9.0.0
+       5.28.x             10.0.0
+       5.30.x             12.1.0
+       5.32.x             13.0.0
+       5.34.x             14.0.0
 
 =item Correction of decomposition mapping
 
@@ -606,27 +612,27 @@ and/or modify it under the same terms as Perl itself.
 
 =over 4
 
-=item http://www.unicode.org/reports/tr15/
+=item L<http://www.unicode.org/reports/tr15/>
 
 Unicode Normalization Forms - UAX #15
 
-=item http://www.unicode.org/Public/UNIDATA/CompositionExclusions.txt
+=item L<http://www.unicode.org/Public/UNIDATA/CompositionExclusions.txt>
 
 Composition Exclusion Table
 
-=item http://www.unicode.org/Public/UNIDATA/DerivedNormalizationProps.txt
+=item L<http://www.unicode.org/Public/UNIDATA/DerivedNormalizationProps.txt>
 
 Derived Normalization Properties
 
-=item http://www.unicode.org/Public/UNIDATA/NormalizationCorrections.txt
+=item L<http://www.unicode.org/Public/UNIDATA/NormalizationCorrections.txt>
 
 Normalization Corrections
 
-=item http://www.unicode.org/review/pr-29.html
+=item L<http://www.unicode.org/review/pr-29.html>
 
 Public Review Issue #29: Normalization Issue
 
-=item http://www.unicode.org/notes/tn5/
+=item L<http://www.unicode.org/notes/tn5/>
 
 Canonical Equivalence in Applications - UTN #5
 
