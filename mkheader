@@ -1,7 +1,7 @@
 #!perl -s
 #
 # This auxiliary script creates five header files
-# used for building XSUB of Unicode::Normalize, and into other c libraries. (safeclib)
+# used for building XSUB of Unicode::Normalize, and into other c libraries. (safeclib, libu8ident)
 #
 # Usage:
 #    do 'mkheader' in perl, or
