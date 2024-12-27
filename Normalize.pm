@@ -572,6 +572,7 @@ so one could cause Unicode 3.2 to be used in any perl version starting with
        5.30.x             12.1.0
        5.32.x             13.0.0
        5.34.x             14.0.0
+       5.38.x             15.0.0
 
 =item Correction of decomposition mapping
 

@@ -379,7 +379,7 @@ my $orig_fh = SelectSaver->new;
 {
 
 # with miniperl we cannot get the Unicode::UCD::UnicodeVersion()
-my $ucd_version = '14.0.0';
+my $ucd_version = '15.0.0';
 unless (is_miniperl()) {
     require Unicode::UCD;
     $ucd_version = Unicode::UCD::UnicodeVersion();
