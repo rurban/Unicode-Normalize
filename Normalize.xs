@@ -171,10 +171,14 @@ static U8* dec_canonical(UV uv)
     U8 ***plane, **row;
     if (OVER_UTF_MAX(uv))
 	return NULL;
+    if ((uv >> 16) >= 16)
+	return NULL;
     plane = (U8***)UN8F_canon[uv >> 16];
     if (! plane)
 	return NULL;
     row = plane[(uv >> 8) & 0xff];
+    if (! row)
+	return NULL;
     return row[uv & 0xff];
 #else
     const UN8IF_canon_PLANE_T **plane, *row;
